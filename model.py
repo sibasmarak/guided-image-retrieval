@@ -67,10 +67,6 @@ class NonPoolerTransformer(nn.Module):
 
         return output
 
-
-
-
-
 class VisionModel(nn.Module):
 
     def __init__(self, model_name, hidden_size = 2048, output_size = 512):
