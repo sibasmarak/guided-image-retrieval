@@ -59,6 +59,7 @@ def preprocess(data_path, dataset_name = "coco"):
             failed = 0
 
             for Id, line in enumerate(tsv_file):
+                if Id == 165: continue
                 caption = line[0]
                 url = line[1]
 
