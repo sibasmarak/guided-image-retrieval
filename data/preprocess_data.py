@@ -41,6 +41,7 @@ def preprocess(data_path, dataset_name = "coco"):
                 preprocessed_dict[image_id]["captions"].append(caption)
 
     elif dataset_name == "cc":
+        
         if 'Train' in data_path:
             dir_path = "./datasets/cc/train"
         elif 'Validation' in data_path:
