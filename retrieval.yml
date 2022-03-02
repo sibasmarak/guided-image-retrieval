@@ -1,6 +1,7 @@
 name: retrieval
 channels:
   - huggingface
+  - metric-learning
   - pytorch
   - conda-forge
   - defaults
@@ -85,6 +86,7 @@ dependencies:
   - python_abi=3.9
   - pytorch=1.8.1
   - pytorch-lightning=1.5.10
+  - pytorch-metric-learning=1.2.0
   - pyu2f=0.1.5
   - pyyaml=5.4.1
   - readline=8.1.2

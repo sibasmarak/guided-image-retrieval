@@ -3,5 +3,8 @@ from utils.loss import ContrastiveLoss
 from utils.env import set_seed
 from data.dataloader import ImageCaptionDataset
 
-if __name__ == "__main__":
+def train():
     pass
+
+if __name__ == "__main__":
+    train()
