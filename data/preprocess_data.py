@@ -9,9 +9,9 @@ def preprocess(data_path, dataset_name = "coco"):
     preprocessed_dict = {}
 
     if dataset_name == "coco":
+        data = json.load(open(data_path, "r"))
 
         for image_dict in tqdm(data["images"], position = 0, leave = True):
-            data = json.load(open(data_path, "r"))
             Id = image_dict["id"]
             image_path = image_dict["file_name"]
             if "train" in image_path:
@@ -31,11 +31,12 @@ def preprocess(data_path, dataset_name = "coco"):
 
         for image_dict in tqdm(data["images"], position = 0, leave = True):
             Id = image_dict["imgid"]
-            image_path = image_dict["file_name"]
+            # print(image_dict)
+            image_path = image_dict["filename"]
             dir_path = "./datasets/flickr30/flickr30k-images"
             preprocessed_dict[Id] = {"image_path": os.path.join(dir_path, image_path), "captions": []}
             sentences_list = image_dict["sentences"]
-            for token_sent_dict in sentences:
+            for token_sent_dict in sentences_list:
                 image_id = token_sent_dict["imgid"]
                 caption = token_sent_dict["raw"]
                 preprocessed_dict[image_id]["captions"].append(caption)
@@ -85,9 +86,9 @@ def preprocess(data_path, dataset_name = "coco"):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset', default = 'coco', type = str, choices=['cc', 'coco', 'flick30k'])
+    parser.add_argument('--dataset', default = 'coco', type = str, choices=['cc', 'coco', 'flickr30k'])
     parser.add_argument('--data_path', type = str)
-    parser.add_argument('--split', default='train', type = str, choices=['train', 'val', 'test'])
+    parser.add_argument('--split', default='train', type = str, choices=['train', 'val', 'test', 'all'])
 
     args = parser.parse_args()
 
