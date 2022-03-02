@@ -3,7 +3,7 @@ import timm
 import torch
 import torch.nn as nn
 from transformers import AutoModel
-from env import model_paths
+from utils.env import model_modelpath_mapping
 
 import torchmetrics
 import pytorch_lightning as pl

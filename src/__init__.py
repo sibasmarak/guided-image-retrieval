@@ -1,1 +1,1 @@
-from model import LanguageModel, VisionModel, DualEncoder
+from .model import LanguageModel, VisionModel, DualEncoder

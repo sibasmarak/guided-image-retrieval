@@ -3,7 +3,7 @@ import json
 import torch
 import regex as re
 from PIL import Image
-from env import model_modelpath_mapping, model_with_no_token_types
+from utils.env import model_modelpath_mapping, model_with_no_token_types
 from torch.utils.data import Dataset, DataLoader, TensorDataset
 
 class ImageCaptionDataset():
@@ -84,7 +84,7 @@ class ImageCaptionDataset():
                 caption_input_ids.append(encoded_caption['input_ids'])
                 caption_attention_masks.append(encoded_caption['attention_mask'])
 
-                if self.langauge_model_name not in model_with_no_token_types
+                if self.langauge_model_name not in model_with_no_token_types:
                     caption_token_type_ids.append(encoded_caption['token_type_ids'])
 
                 image_tensors.append(image)

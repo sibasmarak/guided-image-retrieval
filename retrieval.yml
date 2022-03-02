@@ -16,7 +16,7 @@ dependencies:
   - blinker=1.4
   - brotlipy=0.7.0
   - c-ares=1.18.1
-  - ca-certificates=2021.10.26
+  - ca-certificates=2021.10.8
   - cachetools=5.0.0
   - certifi=2021.10.8
   - cffi=1.15.0
@@ -102,6 +102,7 @@ dependencies:
   - tensorboard-data-server=0.6.0
   - tensorboard-plugin-wit=1.8.1
   - threadpoolctl=2.2.0
+  - timm=0.4.12
   - tk=8.6.11
   - tokenizers=0.10.3
   - torchaudio=0.8.1
@@ -121,5 +122,3 @@ dependencies:
   - zipp=3.7.0
   - zlib=1.2.11
   - zstd=1.4.9
-  - pip:
-    - timm==0.5.4
