@@ -3,28 +3,31 @@ import timm
 import torch
 import torch.nn as nn
 from transformers import AutoModel
-from utils.env import model_modelpath_mapping
+from utils.env import *
+from utils.loss import ContrastiveLoss
+from collections import OrderedDict
 
 import torchmetrics
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_metric_learning import losses
 import torch.nn.functional as F
+from torch import optim
 
 # Language model
 class LanguageModel(nn.Module):
 
-    def __init__(self, model_name, input_size = 768, output_size = 512):
+    def __init__(self, model_name, input_size = 768, output_size = 512, dropout=0.4):
         super(LanguageModel, self).__init__()
         
         self.model_name = model_name
-        self.model_path = model_paths[self.model_name]
+        self.model_path = model_modelpath_mapping[self.model_name]
         self.input_size = input_size
         self.output_size = output_size
         self.dropout = dropout
 
         # Instantiating Pre trained model object 
-        self.model = AutoModel.from_pretrained(model_path)
+        self.model = AutoModel.from_pretrained(self.model_path)
         
         # Layers
         # the first dense layer will have 768 neurons if base model is used and 
@@ -77,29 +80,21 @@ class NonPoolerTransformer(nn.Module):
 
 class VisionModel(nn.Module):
 
-    def __init__(self, model_name, hidden_size = 2048, output_size = 512):
+    def __init__(self, model_name, hidden_size = 2048, output_size = 512, pretrained = True):
         super(VisionModel, self).__init__()
 
         self.model_name = model_name
         self.hidden_size = hidden_size
         self.output_size = output_size
+        self.pretrained = pretrained
 
-        model = timm.create_model(self.model_name, pretrained = True, features_only = True)
-
+        model = timm.create_model(self.model_name, pretrained = self.pretrained)
         dense = nn.Linear(model.fc.in_features, self.output_size)
-        global_pool = nn.AdaptiveAvgPool2d(self.output_size)
+        model.reset_classifier(0)
         self.model = nn.Sequential(OrderedDict([
-            ('feat_extractor', model),
-            ('global_pool', global_pool),
+            ('backbone', model),
             ('dense', dense)
         ]))
-
-        # m = timm.create_model(self.model_name, features_only = True, pretrained = True, num_classes = self.num_classes)
-        #     global_pool = nn.AdaptiveAvgPool2d(self.output_size)
-        #     self.model = nn.Sequential(OrderedDict([
-        #         ('feat_extractor', m),
-        #         ('fc', fc)
-        #     ]))
 
     def forward(self, x):
         x = self.model(x)
@@ -107,8 +102,8 @@ class VisionModel(nn.Module):
 
 class DualEncoder(pl.LightningModule):
 
-    def __init__(self, vision_model_name, language_model_name, langauge_input_size = 768, 
-                vision_hidden_size = 2048, output_size = 512, learning_rate = 1e-3):
+    def __init__(self, vision_model_name, language_model_name, language_input_size = 768, 
+                vision_hidden_size = 2048, output_size = 512, learning_rate = 1e-3, dropout = 0.4, pretrained = True):
         super().__init__()
 
         # 'save_hyperparameters' saves the values of anything in the __init__ for us to the checkpoint.
@@ -117,15 +112,19 @@ class DualEncoder(pl.LightningModule):
         self.save_hyperparameters()
         self.vision_model_name = vision_model_name
         self.language_model_name = language_model_name
-        self.langauge_input_size = langauge_input_size
+        self.language_input_size = language_input_size
         self.vision_hidden_size = vision_hidden_size
         self.output_size = output_size
         self.learning_rate = learning_rate
+        self.dropout = dropout
+        self.pretrained = pretrained
 
         self.loss_cls = ContrastiveLoss()
 
-        self.vision_model = VisionModel(self.vision_model_name, hidden_size = self.vision_hidden_size, output_size = self.output_size)
-        self.language_model = LanguageModel(self.language_model_name, input_size = langauge_input_size, output_size = self.output_size)
+        self.vision_model = VisionModel(self.vision_model_name, hidden_size = self.vision_hidden_size, 
+                                        output_size = self.output_size, pretrained = self.pretrained)
+        self.language_model = LanguageModel(self.language_model_name, input_size = language_input_size, 
+                                            output_size = self.output_size, dropout = self.dropout)
         
         self.accuracy = torchmetrics.Accuracy()
     
@@ -137,28 +136,32 @@ class DualEncoder(pl.LightningModule):
         return image_features, text_features
     
     def training_step(self, batch, batch_idx):
-        image_features, text_features = self.forward(batch['image'], batch['text_input_ids'], 
-                                                    batch['attention_masks'], batch['token_type_ids'])
+        # image_features, text_features = self.forward(batch['image'], batch['text_input_ids'], 
+        #                                             batch['attention_masks'], batch['token_type_ids'])
+
+        image_features, text_features = self.forward(batch[0], batch[1], batch[2], batch[3])
         
         # self-supervised contrastive loss
-        loss = self.loss_cls(image_features, text_features)
+        loss = self.loss_cls(image_features, text_features, batch[4])
 
         # Logging training loss on each training step and also on each epoch
-        self.log('train_loss', loss, on_step=True, on_epoch=True, logger=True)
+        # self.log('train_loss', loss, on_step=True, on_epoch=True, logger=False)
 
         return loss
     
     def validation_step(self, batch, batch_idx):
         # Implement the validation step here.
         # Make sure to log the val_loss and val_acc as you did in the training step
-        image_features, text_features = self.forward(batch['image'], batch['text_input_ids'], 
-                                                    batch['attention_masks'], batch['token_type_ids'])
+        # image_features, text_features = self.forward(batch['image'], batch['text_input_ids'], 
+        #                                             batch['attention_masks'], batch['token_type_ids'])
         
+        image_features, text_features = self.forward(batch[0], batch[1], batch[2], batch[3])
+
         # self-supervised contrastive loss
-        loss = self.loss_cls(image_features, text_features)
+        loss = self.loss_cls(image_features, text_features, batch[4])
 
         # Logging training loss on each training step and also on each epoch
-        self.log('val_loss', loss, on_step=True, on_epoch=True, logger=True)
+        # self.log('val_loss', loss, on_step=True, on_epoch=True, logger=False)
 
         return loss
     
@@ -166,14 +169,16 @@ class DualEncoder(pl.LightningModule):
         # Implement the test step here.
         # Make sure to log the test_loss and test_acc.
         # Code is very similar to that of the validation step.
-        image_features, text_features = self.forward(batch['image'], batch['text_input_ids'], 
-                                                    batch['attention_masks'], batch['token_type_ids'])
+        # image_features, text_features = self.forward(batch['image'], batch['text_input_ids'], 
+        #                                             batch['attention_masks'], batch['token_type_ids'])
         
+        image_features, text_features = self.forward(batch[0], batch[1], batch[2], batch[3])
+
         # self-supervised contrastive loss
-        loss = self.loss_cls(image_features, text_features)
+        loss = self.loss_cls(image_features, text_features, batch[4])
 
         # Logging training loss on each training step and also on each epoch
-        self.log('test_loss', loss, on_step=True, on_epoch=True, logger=True)
+        # self.log('test_loss', loss, on_step=True, on_epoch=True, logger=False)
 
         return loss
     
