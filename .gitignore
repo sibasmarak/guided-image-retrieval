@@ -6,3 +6,5 @@ data.py
 *__pycache__/
 pretrained
 lightning_logs
+core*
+test.pbs*

@@ -35,7 +35,8 @@ class ImageCaptionDataset():
                         
 
         self.language_model_path = model_modelpath_mapping[self.language_model_name]
-        self.tokenizer = AutoTokenizer.from_pretrained(self.language_model_path, local_files_only = self.local_files_only)
+        self.tokenizer = AutoTokenizer.from_pretrained(self.language_model_path, local_files_only = self.local_files_only,
+                                                        TOKENIZERS_PARALLELISM = True)
 
         self.train_dataloader = None
         self.vaidation_dataloader = None
@@ -83,7 +84,7 @@ class ImageCaptionDataset():
         caption_token_type_ids = []
         caption_attention_masks = []
 
-        i = 0
+        # i = 0
 
         for image_id, values in tqdm(preprocessed_dict.items(), position = 0, leave = True):
             
@@ -115,9 +116,9 @@ class ImageCaptionDataset():
                 image_tensors.append(image)
                 image_ids.append(torch.tensor(int(image_id)))
 
-            i+=1
-            if i == 1000:
-                break
+            # i+=1
+            # if i == 1000:
+            #     break
 
         caption_input_ids = torch.tensor(caption_input_ids).squeeze()
         caption_attention_masks = torch.tensor(caption_attention_masks).squeeze()

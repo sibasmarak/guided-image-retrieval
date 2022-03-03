@@ -9,7 +9,7 @@ from collections import OrderedDict
 
 import torchmetrics
 import pytorch_lightning as pl
-from pytorch_lightning.loggers import TensorBoardLogger
+# from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_metric_learning import losses
 import torch.nn.functional as F
 from torch import optim
@@ -103,7 +103,7 @@ class VisionModel(nn.Module):
 class DualEncoder(pl.LightningModule):
 
     def __init__(self, vision_model_name, language_model_name, language_input_size = 768, 
-                vision_hidden_size = 2048, output_size = 512, learning_rate = 1e-3, dropout = 0.4, pretrained = True):
+                vision_hidden_size = 2048, output_size = 512, learning_rate = 1e-4, dropout = 0.4, pretrained = True):
         super().__init__()
 
         # 'save_hyperparameters' saves the values of anything in the __init__ for us to the checkpoint.
@@ -125,7 +125,7 @@ class DualEncoder(pl.LightningModule):
                                         output_size = self.output_size, pretrained = self.pretrained)
         self.language_model = LanguageModel(self.language_model_name, input_size = language_input_size, 
                                             output_size = self.output_size, dropout = self.dropout)
-        
+    
         self.accuracy = torchmetrics.Accuracy()
     
     def forward(self, image, text_input_ids, attention_masks = None, token_type_ids = None):
