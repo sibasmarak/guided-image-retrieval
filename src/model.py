@@ -103,19 +103,22 @@ class VisionModel(nn.Module):
 class DualEncoder(pl.LightningModule):
 
     def __init__(self, vision_model_name, language_model_name, language_input_size = 768, 
-                vision_hidden_size = 2048, output_size = 512, learning_rate = 1e-4, dropout = 0.4, pretrained = True):
+                vision_hidden_size = 2048, output_size = 512, vision_learning_rate=1e-2, 
+                language_learning_rate = 1e-5, dropout = 0.4, pretrained = True):
         super().__init__()
 
         # 'save_hyperparameters' saves the values of anything in the __init__ for us to the checkpoint.
         # This is a useful feature.
 
         self.save_hyperparameters()
+
         self.vision_model_name = vision_model_name
         self.language_model_name = language_model_name
         self.language_input_size = language_input_size
         self.vision_hidden_size = vision_hidden_size
         self.output_size = output_size
-        self.learning_rate = learning_rate
+        self.vision_learning_rate = vision_learning_rate
+        self.language_learning_rate = language_learning_rate
         self.dropout = dropout
         self.pretrained = pretrained
 
@@ -128,21 +131,25 @@ class DualEncoder(pl.LightningModule):
     
         self.accuracy = torchmetrics.Accuracy()
     
-    def forward(self, image, text_input_ids, attention_masks = None, token_type_ids = None):
+    def on_epoch_start(self):
+        print('\n')
 
+    def forward(self, image, text_input_ids, attention_masks = None, token_type_ids = None):
+        
         image_features = self.vision_model(image)
         text_features = self.language_model(text_input_ids, attention_masks = attention_masks, token_type_ids = token_type_ids)
 
         return image_features, text_features
     
-    def training_step(self, batch, batch_idx):
+    def training_step(self, batch, batch_idx, optimizer_idx):
         # image_features, text_features = self.forward(batch['image'], batch['text_input_ids'], 
         #                                             batch['attention_masks'], batch['token_type_ids'])
 
-        image_features, text_features = self.forward(batch[0], batch[1], batch[2], batch[3])
+        image_features, text_features = self.forward(batch['images'], batch['caption_input_ids'], batch['caption_attention_masks'], batch['caption_token_type_ids'])
         
         # self-supervised contrastive loss
-        loss = self.loss_cls(image_features, text_features, batch[4])
+        loss = self.loss_cls(image_features, text_features, batch['image_ids'])
+        print('Loss:', loss)
 
         # Logging training loss on each training step and also on each epoch
         # self.log('train_loss', loss, on_step=True, on_epoch=True, logger=False)
@@ -154,11 +161,13 @@ class DualEncoder(pl.LightningModule):
         # Make sure to log the val_loss and val_acc as you did in the training step
         # image_features, text_features = self.forward(batch['image'], batch['text_input_ids'], 
         #                                             batch['attention_masks'], batch['token_type_ids'])
-        
-        image_features, text_features = self.forward(batch[0], batch[1], batch[2], batch[3])
+
+        image_features, text_features = self.forward(batch['images'], batch['caption_input_ids'], batch['caption_attention_masks'], batch['caption_token_type_ids'])
 
         # self-supervised contrastive loss
-        loss = self.loss_cls(image_features, text_features, batch[4])
+        loss = self.loss_cls(image_features, text_features, batch['image_ids'])
+
+        print("Val loss: ", loss)
 
         # Logging training loss on each training step and also on each epoch
         # self.log('val_loss', loss, on_step=True, on_epoch=True, logger=False)
@@ -172,10 +181,10 @@ class DualEncoder(pl.LightningModule):
         # image_features, text_features = self.forward(batch['image'], batch['text_input_ids'], 
         #                                             batch['attention_masks'], batch['token_type_ids'])
         
-        image_features, text_features = self.forward(batch[0], batch[1], batch[2], batch[3])
+        image_features, text_features = self.forward(batch['images'], batch['caption_input_ids'], batch['caption_attention_masks'], batch['caption_token_type_ids'])
 
         # self-supervised contrastive loss
-        loss = self.loss_cls(image_features, text_features, batch[4])
+        loss = self.loss_cls(image_features, text_features, batch['image_ids'])
 
         # Logging training loss on each training step and also on each epoch
         # self.log('test_loss', loss, on_step=True, on_epoch=True, logger=False)
@@ -184,4 +193,6 @@ class DualEncoder(pl.LightningModule):
     
     def configure_optimizers(self):
         # self.hparams available because we called self.save_hyperparameters()
-        return optim.Adam(self.parameters(), lr=self.hparams.learning_rate)
+        vision_optimizer = optim.Adam(self.vision_model.parameters(), lr=self.hparams.vision_learning_rate)
+        language_optimizer = optim.Adam(self.language_model.parameters(), lr=self.hparams.language_learning_rate)
+        return [vision_optimizer, language_optimizer]
