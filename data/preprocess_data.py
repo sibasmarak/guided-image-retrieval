@@ -32,7 +32,7 @@ def preprocess(data_path, dataset_name = "coco"):
         for image_dict in tqdm(data["images"], position = 0, leave = True):
             Id = image_dict["imgid"]
             image_path = image_dict["filename"]
-            dir_path = "./datasets/flickr30/flickr30k-images"
+            dir_path = "./datasets/flickr30k/flickr30k-images"
             preprocessed_dict[Id] = {"image_path": os.path.join(dir_path, image_path), "captions": []}
             sentences_list = image_dict["sentences"]
             for token_sent_dict in sentences_list:
