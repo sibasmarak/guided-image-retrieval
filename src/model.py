@@ -28,7 +28,9 @@ class LanguageModel(nn.Module):
 
         # Instantiating Pre trained model object 
         self.model = AutoModel.from_pretrained(self.model_path)
-        
+        # for name, p in self.model.named_parameters():
+        #     p.requires_grad = False
+
         # Layers
         # the first dense layer will have 768 neurons if base model is used and 
         # 1024 neurons if large model is used
@@ -143,6 +145,7 @@ class DualEncoder(pl.LightningModule):
         return image_features, text_features
     
     def training_step(self, batch, batch_idx, optimizer_idx):
+    # def training_step(self, batch, batch_idx):
         image_features, text_features = self.forward(batch['images'], batch['caption_input_ids'], batch['caption_attention_masks'], batch['caption_token_type_ids'])
         loss = self.loss_cls(image_features, text_features, batch['image_ids'])
         # image_features, text_features = self.forward(batch[0], batch[1], batch[2], batch[3])
@@ -179,4 +182,6 @@ class DualEncoder(pl.LightningModule):
         # self.hparams available because we called self.save_hyperparameters()
         vision_optimizer = optim.Adam(self.vision_model.parameters(), lr=self.hparams.vision_learning_rate, weight_decay=self.weight_decay)
         language_optimizer = optim.Adam(self.language_model.parameters(), lr=self.hparams.language_learning_rate, weight_decay=self.weight_decay)
+        # optimizer = optim.Adam(self.parameters(), lr=self.hparams.language_learning_rate, weight_decay=self.weight_decay)
+        # return optimizer
         return [vision_optimizer, language_optimizer]

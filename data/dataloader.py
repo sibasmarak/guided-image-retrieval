@@ -201,11 +201,16 @@ class ImageCaptionDataset(Dataset):
 
 		self.preprocessed_dict = json.load(open(f'./datasets/{self.dataset}/{self.split}_image_captions.json', 'r'))
 
+		self.language_model_path = model_modelpath_mapping[self.language_model_name]
+		self.tokenizer = AutoTokenizer.from_pretrained(self.language_model_path, local_files_only = self.local_files_only,
+														TOKENIZERS_PARALLELISM = True)
+														
 		self.image_ids = []
 		self.image_paths = []
 		self.captions = []
 
 		i = 0
+		len_prepro_dict = len(list(self.preprocessed_dict.items()))
 		for image_ids, path_caption_dict in list(self.preprocessed_dict.items()):
 			num_captions = len(path_caption_dict['captions'])
 			image_path = path_caption_dict['image_path']
@@ -213,27 +218,29 @@ class ImageCaptionDataset(Dataset):
 			# create the lists
 			self.image_ids.extend([image_ids] * num_captions)   
 			self.image_paths.extend([image_path] * num_captions)
+
+			for idx in range(num_captions):
+				if self.preprocess_text:
+					path_caption_dict['captions'][idx] = self.preprocess_caption(path_caption_dict['captions'][idx])
+
+				path_caption_dict['captions'][idx] = self.tokenizer(path_caption_dict['captions'][idx], max_length = self.max_length_caption, padding = 'max_length')
+
 			self.captions.extend(path_caption_dict['captions'])
-			# if i == 1000:
-			# 	break
-			# i+=1
+			if self.split == 'train' and i >= int(0.20 * len_prepro_dict):
+				break
+			i += 1
 
 		self.transform = transforms.Compose([
 											transforms.Resize(self.image_resize),
 											transforms.ToTensor()
 											]) 
 						
-
-		self.language_model_path = model_modelpath_mapping[self.language_model_name]
-		self.tokenizer = AutoTokenizer.from_pretrained(self.language_model_path, local_files_only = self.local_files_only,
-														TOKENIZERS_PARALLELISM = True)
 	def __len__(self):
 		return len(self.image_ids)
 
 	def __getitem__(self, idx):
 		# obtain image id
 		image_id = torch.tensor(int(self.image_ids[idx]))
-
 
 		# obtain the image
 		image_path = self.image_paths[idx]
@@ -249,13 +256,14 @@ class ImageCaptionDataset(Dataset):
 
 
 		# obtain the text
-		caption = self.captions[idx]
-		if self.preprocess_text:
-			caption = self.preprocess_caption(caption)
+		# caption = self.captions[idx]
+		encoded_caption = self.captions[idx]
+		# if self.preprocess_text:
+		# 	caption = self.preprocess_caption(caption)
 
 
 		# tokenize the caption
-		encoded_caption = self.tokenizer(caption, max_length = self.max_length_caption, padding = 'max_length')
+		# encoded_caption = self.tokenizer(caption, max_length = self.max_length_caption, padding = 'max_length')
 
 
 		caption_input_ids = encoded_caption['input_ids']

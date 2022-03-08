@@ -77,7 +77,7 @@ if __name__ == "__main__":
 				language_learning_rate = args.language_learning_rate, dropout = args.dropout, pretrained = args.pretrained, weight_decay=args.weight_decay)
 
 	# trainer        
-	trainer = pl.Trainer(max_epochs = args.max_epochs, strategy="ddp_spawn",
+	trainer = pl.Trainer(max_epochs = args.max_epochs,
 						progress_bar_refresh_rate = args.progress_bar_refresh_rate, gpus = args.gpus, gradient_clip_val=args.gradient_clip_val)
 						# add deterministic in Trainer if cannot reproduce results
 

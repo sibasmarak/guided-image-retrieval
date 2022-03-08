@@ -109,12 +109,17 @@ class ContrastiveLoss(nn.Module):
 		neg_mask = ~(labels.view(1, labels.shape[0]) == labels.view(labels.shape[0], 1))  # [B, B]
 		pos_mask = torch.eye(labels.shape[0], dtype=torch.bool).to(device=labels.device)  # [B, B]
 
+		# neg_mask = torch.rand(labels.shape[0], labels.shape[0], device=labels.device, requires_grad=True)
+		# pos_mask = torch.rand(labels.shape[0], labels.shape[0], device=labels.device, requires_grad=True)
+
 		# pos_mask, neg_mask = self.create_pos_neg_masks(labels) # bs x bs
 		image_features = F.normalize(image_features, p=2, dim=1)
 		text_features = F.normalize(text_features, p=2, dim=1)
 		# bs x feat_s ===== bs x bs ==== bs x bs
 		# neg_similarity ===== bs x 1
 		sim_scores = torch.exp(torch.matmul(image_features, text_features.T))
+		# sim_scores = torch.rand(labels.shape[0], labels.shape[0], device=labels.device, requires_grad=True)
+
 		neg_similarity = torch.sum(sim_scores * neg_mask, dim=0)
 		# neg_similarity = torch.sum(torch.exp(torch.matmul(image_features, text_features.T) * neg_mask), dim=0)
 		# pos_similarity = torch.zeros(image_features.shape[0]).to(labels.device)

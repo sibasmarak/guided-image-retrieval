@@ -11,7 +11,7 @@ def set_seed(seed):
     seed_everything(seed, workers=True)
     torch.backends.cudnn.deterministic = True
 
-model_modelpath_mapping = {'bert': 'bert-base-uncased', 
+model_modelpath_mapping = {'bert': './pretrained/bert-base-uncased', 
                             'roberta': 'roberta-base', 
                             'bart': "facebook/bart-base", 
                             'distilbert': 'distilbert-base-uncased', 
