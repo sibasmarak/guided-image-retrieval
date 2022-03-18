@@ -92,6 +92,10 @@ if __name__ == "__main__":
 	if args.train: trainer.fit(model, train_dataloader)
 	if args.test is None:
 		print("Testing on val")
-		test_retrieval(model, validation_dataloader, recall_ks)
+		recalls = test_retrieval(model, validation_dataloader, recall_ks)
+		print("Recall@1: ", recalls[0])
+		print("Recall@5: ", recalls[1])
 	else:
-		test_retrieval(model, test_dataloader, recall_ks)
+		recalls = test_retrieval(model, test_dataloader, recall_ks)
+		print("Recall@1: ", recalls[0])
+		print("Recall@5: ", recalls[1])
