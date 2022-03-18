@@ -1,5 +1,7 @@
-import tqdm
+from tqdm import tqdm
 from copy import deepcopy
+import torch.nn.functional as F
+import torch
 
 def test_retrieval(model, dataloader, k_s = [1, 5]): # dataloader should have shuffle = False
     inner_dataloader = deepcopy(dataloader)
