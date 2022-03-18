@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader
 if __name__ == "__main__":
 
 	parser = argparse.ArgumentParser()
-	parser.add_argument('--batch_size', default = 128, type = int)
+	parser.add_argument('--batch_size', default = 128, type = int)	# 64, 128
 	parser.add_argument('--dataset', default = 'coco', type = str, choices=['cc', 'coco', 'flickr30k'])
 	parser.add_argument('--deterministic', default = True, type = bool)
 	parser.add_argument('--dropout', default = 0.4, type = float)
@@ -27,8 +27,8 @@ if __name__ == "__main__":
 	parser.add_argument('--max_epochs', default = 10, type = int)
 	parser.add_argument('--max_length_caption', default = 64, type = int)
 	parser.add_argument('--num_workers', default = 2, type = int)
-	parser.add_argument('--output_size', default = 512, type = int)
-	parser.add_argument('--preprocess_text', default = True, type = bool)
+	parser.add_argument('--output_size', default = 512, type = int) # Tune this [512, 256, 1024]
+	parser.add_argument('--preprocess_text', default = True, type = bool) # With and without
 	parser.add_argument('--pretrained', default = False, type = bool)
 	parser.add_argument('--progress_bar_refresh_rate', default = 5, type = int)
 	parser.add_argument('--seed', default = 0, type = int)
@@ -37,8 +37,9 @@ if __name__ == "__main__":
 	parser.add_argument('--validation', default = True, type = bool)
 	parser.add_argument('--vision_hidden_size', default = 2048, type = int)
 	parser.add_argument('--vision_model_name', default = 'resnet50', type = str)
+	parser.add_argument('--warmup_epochs', default = 2, type = int)
 	parser.add_argument('--warn_grayscale', default = False, type = bool)
-	parser.add_argument('--weight_decay', default = 1e-4, type = float)
+	parser.add_argument('--weight_decay', default = 1e-4, type = float) # 0, 1e-4
 
 
 	args = parser.parse_args()
@@ -74,7 +75,8 @@ if __name__ == "__main__":
 	# model    
 	model = DualEncoder(args.vision_model_name, args.language_model_name, language_input_size = args.language_input_size, 
 				vision_hidden_size = args.vision_hidden_size, output_size = args.output_size, vision_learning_rate = args.vision_learning_rate,
-				language_learning_rate = args.language_learning_rate, dropout = args.dropout, pretrained = args.pretrained, weight_decay=args.weight_decay)
+				language_learning_rate = args.language_learning_rate, dropout = args.dropout, pretrained = args.pretrained, 
+				weight_decay=args.weight_decay, warmup_epochs = args.warmup_epochs)
 
 	# trainer        
 	trainer = pl.Trainer(max_epochs = args.max_epochs,

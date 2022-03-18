@@ -14,6 +14,8 @@ from pytorch_metric_learning import losses
 import torch.nn.functional as F
 from torch import optim
 
+from torch.optim.lr_scheduler import CosineAnnealingLR
+
 # Language model
 class LanguageModel(nn.Module):
 
@@ -106,7 +108,8 @@ class DualEncoder(pl.LightningModule):
 
     def __init__(self, vision_model_name, language_model_name, language_input_size = 768, 
                 vision_hidden_size = 2048, output_size = 512, vision_learning_rate=1e-2, 
-                language_learning_rate = 1e-5, dropout = 0.4, pretrained = True, weight_decay=1e-4):
+                language_learning_rate = 1e-5, dropout = 0.4, pretrained = True, weight_decay=1e-4,
+                warmup_epochs = 2):
         super().__init__()
 
         # 'save_hyperparameters' saves the values of anything in the __init__ for us to the checkpoint.
@@ -124,6 +127,7 @@ class DualEncoder(pl.LightningModule):
         self.weight_decay = weight_decay
         self.dropout = dropout
         self.pretrained = pretrained
+        self.warmup_epochs = warmup_epochs
 
         self.loss_cls = ContrastiveLoss()
 
@@ -148,6 +152,8 @@ class DualEncoder(pl.LightningModule):
     # def training_step(self, batch, batch_idx):
         image_features, text_features = self.forward(batch['images'], batch['caption_input_ids'], batch['caption_attention_masks'], batch['caption_token_type_ids'])
         loss = self.loss_cls(image_features, text_features, batch['image_ids'])
+        self.vision_scheduler.step()
+        self.language_scheduler.step()
         # image_features, text_features = self.forward(batch[0], batch[1], batch[2], batch[3])
         # loss = self.loss_cls(image_features, text_features, batch[4])
         # print('Loss:', loss)
@@ -184,4 +190,6 @@ class DualEncoder(pl.LightningModule):
         language_optimizer = optim.Adam(self.language_model.parameters(), lr=self.hparams.language_learning_rate, weight_decay=self.weight_decay)
         # optimizer = optim.Adam(self.parameters(), lr=self.hparams.language_learning_rate, weight_decay=self.weight_decay)
         # return optimizer
+        self.vision_scheduler = CosineAnnealingLR(vision_optimizer, T_max = self.warmup_epochs)
+        self.language_scheduler = CosineAnnealingLR(language_optimizer, T_max = self.warmup_epochs)
         return [vision_optimizer, language_optimizer]
