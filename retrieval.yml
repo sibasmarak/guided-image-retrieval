@@ -16,8 +16,9 @@ dependencies:
   - blas=1.0
   - blinker=1.4
   - brotlipy=0.7.0
+  - bzip2=1.0.8
   - c-ares=1.18.1
-  - ca-certificates=2021.10.8
+  - ca-certificates=2022.2.1
   - cachetools=5.0.0
   - certifi=2021.10.8
   - cffi=1.15.0
@@ -26,13 +27,16 @@ dependencies:
   - click=8.0.3
   - colorama=0.4.4
   - cryptography=35.0.0
-  - cudatoolkit=10.2.89
+  - cudatoolkit=10.1.243
   - dataclasses=0.8
+  - ffmpeg=4.3
   - filelock=3.4.2
   - freetype=2.11.0
   - fsspec=2022.1.0
   - future=0.18.2
   - giflib=5.2.1
+  - gmp=6.2.1
+  - gnutls=3.6.15
   - google-auth=2.6.0
   - google-auth-oauthlib=0.4.6
   - grpcio=1.42.0
@@ -40,7 +44,8 @@ dependencies:
   - importlib-metadata=4.11.1
   - intel-openmp=2019.4
   - joblib=1.1.0
-  - jpeg=9d
+  - jpeg=9b
+  - lame=3.100
   - lcms2=2.12
   - ld_impl_linux-64=2.35.1
   - libffi=3.3
@@ -48,11 +53,15 @@ dependencies:
   - libgfortran-ng=7.5.0
   - libgfortran4=7.5.0
   - libgomp=9.3.0
+  - libiconv=1.15
+  - libidn2=2.3.2
   - libmklml=2019.0.5
   - libpng=1.6.37
   - libprotobuf=3.15.8
   - libstdcxx-ng=9.3.0
+  - libtasn1=4.16.0
   - libtiff=4.2.0
+  - libunistring=0.9.10
   - libuv=1.40.0
   - libwebp=1.2.0
   - libwebp-base=1.2.0
@@ -64,11 +73,13 @@ dependencies:
   - mkl_random=1.0.2
   - multidict=5.2.0
   - ncurses=6.3
+  - nettle=3.7.3
   - ninja=1.10.2
   - numpy=1.19.2
   - numpy-base=1.19.2
   - oauthlib=3.2.0
   - olefile=0.46
+  - openh264=2.1.1
   - openssl=1.1.1m
   - packaging=21.3
   - pillow=8.4.0
@@ -109,7 +120,7 @@ dependencies:
   - tokenizers=0.10.3
   - torchaudio=0.8.1
   - torchmetrics=0.7.2
-  - torchvision=0.2.2
+  - torchvision=0.9.1
   - tqdm=4.62.3
   - transformers=4.4.2
   - typing-extensions=4.1.1
@@ -124,3 +135,4 @@ dependencies:
   - zipp=3.7.0
   - zlib=1.2.11
   - zstd=1.4.9
+prefix: /home/bt2/18CS10069/anaconda3/envs/retrieval
