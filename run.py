@@ -2,6 +2,7 @@ import argparse
 from src.model import LanguageModel, VisionModel, DualEncoder
 from utils.loss import ContrastiveLoss
 from utils.env import set_seed
+from utils.test import test_retrieval
 from data.dataloader import ImageCaptionDataset, OldImageCaptionDataset
 
 import pytorch_lightning as pl
@@ -39,11 +40,15 @@ if __name__ == "__main__":
 	parser.add_argument('--vision_model_name', default = 'resnet50', type = str)
 	parser.add_argument('--warn_grayscale', default = False, type = bool)
 	parser.add_argument('--weight_decay', default = 1e-4, type = float)
+	parser.add_argument('--recall_ks', default="1,5", type = str)
 
 
 	args = parser.parse_args()
 
 	set_seed(args.seed)
+
+	recall_ks = [int(r) for r in args.recall_ks.split(',')]
+
 	device = "cpu"
 	if torch.cuda.is_available(): device = torch.cuda.device("cuda:0")
 
@@ -83,3 +88,8 @@ if __name__ == "__main__":
 
 	if args.train and args.validation: trainer.fit(model, train_dataloader, validation_dataloader)
 	if args.train: trainer.fit(model, train_dataloader)
+	if args.test is None:
+		print("Testing on val")
+		test_retrieval(model, validation_dataloader, recall_ks)
+	else:
+		test_retrieval(model, test_dataloader, recall_ks)
