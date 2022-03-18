@@ -5,47 +5,59 @@ from tqdm import tqdm
 from io import BytesIO
 import os, json, argparse, csv
 
-def preprocess(data_path, dataset_name = "coco"):
+def preprocess(data_path, dataset_name = "coco", split = "all"):
     preprocessed_dict = {}
 
     if dataset_name == "coco":
         data = json.load(open(data_path, "r"))
+
+        if split == 'test':
+            raise ValueError("'test' split has no annotations")
 
         for image_dict in tqdm(data["images"], position = 0, leave = True):
             Id = image_dict["id"]
             image_path = image_dict["file_name"]
             if "train" in image_path:
                 dir_path = "./datasets/coco/train2014"
+                if split in ["train", "all"]:
+                    preprocessed_dict[Id] = {"image_path": os.path.join(dir_path, image_path), "captions": []}
             elif "val" in image_path:
                 dir_path = "./datasets/coco/val2014"
-
-            preprocessed_dict[Id] = {"image_path": os.path.join(dir_path, image_path), "captions": []}
+                if split in ["val", "all"]:
+                    preprocessed_dict[Id] = {"image_path": os.path.join(dir_path, image_path), "captions": []}
 
         for annotation_dict in data["annotations"]:
             image_id = annotation_dict["image_id"]
             caption = annotation_dict["caption"]
-            preprocessed_dict[image_id]["captions"].append(caption)
+            if image_id in preprocessed_dict:
+                preprocessed_dict[image_id]["captions"].append(caption)
 
     elif dataset_name == "flickr30k":
         data = json.load(open(data_path, "r"))
-
+        dir_path = "./datasets/flickr30k/flickr30k-images"
+        
         for image_dict in tqdm(data["images"], position = 0, leave = True):
             Id = image_dict["imgid"]
             image_path = image_dict["filename"]
-            dir_path = "./datasets/flickr30k/flickr30k-images"
-            preprocessed_dict[Id] = {"image_path": os.path.join(dir_path, image_path), "captions": []}
-            sentences_list = image_dict["sentences"]
-            for token_sent_dict in sentences_list:
-                image_id = token_sent_dict["imgid"]
-                caption = token_sent_dict["raw"]
-                preprocessed_dict[image_id]["captions"].append(caption)
+            if split in [image_dict["split"], "all"]:
+                preprocessed_dict[Id] = {"image_path": os.path.join(dir_path, image_path), "captions": []}
+                sentences_list = image_dict["sentences"]
+                for token_sent_dict in sentences_list:
+                    image_id = token_sent_dict["imgid"]
+                    caption = token_sent_dict["raw"]
+                    preprocessed_dict[image_id]["captions"].append(caption)
 
     elif dataset_name == "cc":
+
         
-        if 'Train' in data_path:
+        if split == 'train':
+            assert 'Train' in data_path, "wrong data path, expected 'Train' in data path"
             dir_path = "./datasets/cc/train"
-        elif 'Validation' in data_path:
+        elif split == 'val':
+            assert 'Validation' in data_path, "wrong data path, expected 'Val' in data path"
             dir_path = "./datasets/cc/val"
+        else:
+            raise ValueError(f"Allowed values for split: 'train', 'val'. Received {split}")
         if not os.path.exists(dir_path):
             os.makedirs(dir_path)
 
@@ -91,7 +103,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    preprocessed_dict = preprocess(args.data_path, args.dataset)
+    preprocessed_dict = preprocess(args.data_path, args.dataset, args.split)
     save_path = open(f'./datasets/{args.dataset}/{args.split}_image_captions.json', 'w')
     json.dump(preprocessed_dict, save_path)
 
