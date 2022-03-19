@@ -2,6 +2,18 @@ from tqdm import tqdm
 from copy import deepcopy
 import torch.nn.functional as F
 import torch
+from pytorch_lightning.callbacks import Callback
+
+class TestCallback(Callback):
+    def __init__(self, dataloader, k_s=[1, 5]):
+        self.dataloader = dataloader
+        self.k_s = k_s
+
+    def on_validation_epoch_end(self, trainer, model):
+        recalls = test_retrieval(model, self.dataloader, self.k_s)
+        for i, k in enumerate(self.k_s):
+			print(f"Recall@{k}: ", recalls[i])
+
 
 def test_retrieval(model, dataloader, k_s = [1, 5]): # dataloader should have shuffle = False
     inner_dataloader = deepcopy(dataloader)

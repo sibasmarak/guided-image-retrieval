@@ -1,8 +1,9 @@
 import argparse
+from gc import callbacks
 from src.model import LanguageModel, VisionModel, DualEncoder
 from utils.loss import ContrastiveLoss
 from utils.env import set_seed
-from utils.test import test_retrieval
+from utils.test import test_retrieval, TestCallback
 from data.dataloader import ImageCaptionDataset, OldImageCaptionDataset
 
 import pytorch_lightning as pl
@@ -85,7 +86,7 @@ if __name__ == "__main__":
 
 	# trainer        
 	trainer = pl.Trainer(max_epochs = args.max_epochs,
-						progress_bar_refresh_rate = args.progress_bar_refresh_rate, gpus = args.gpus, gradient_clip_val=args.gradient_clip_val)
+						progress_bar_refresh_rate = args.progress_bar_refresh_rate, gpus = args.gpus, gradient_clip_val=args.gradient_clip_val, callbacks=[TestCallback(validation_dataloader, recall_ks)])
 						# add deterministic in Trainer if cannot reproduce results
 
 	if args.train and args.validation: trainer.fit(model, train_dataloader, validation_dataloader)
