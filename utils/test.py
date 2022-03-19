@@ -1,4 +1,4 @@
-import tqdm
+from tqdm import tqdm
 from copy import deepcopy
 
 def test_retrieval(model, dataloader, k_s = [1, 5]): # dataloader should have shuffle = False
@@ -32,5 +32,3 @@ def test_retrieval(model, dataloader, k_s = [1, 5]): # dataloader should have sh
         len_recall += retrieval.size(0)
     recalls = [float(total_recall)/len_recall for total_recall in total_recalls]
     return recalls
-        
-diff --git a/test.py b/test.py
