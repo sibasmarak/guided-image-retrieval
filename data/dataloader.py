@@ -228,7 +228,7 @@ class ImageCaptionDataset(Dataset):
 				if self.preprocess_text:
 					captions[idx] = self.preprocess_caption(captions[idx])
 
-				captions[idx] = self.tokenizer(captions[idx], max_length = self.max_length_caption, padding = 'max_length')
+				captions[idx] = self.tokenizer(captions[idx], max_length = self.max_length_caption, padding = 'max_length', truncation=True)
 
 			self.captions.extend(captions)
 			if self.split == 'train' and i >= int(0.20 * len_prepro_dict):
@@ -285,7 +285,7 @@ class ImageCaptionDataset(Dataset):
 		return image_id, image, caption_input_ids, caption_attention_masks, caption_token_type_ids
 
 	def collater(self, items):
-
+		
 		if self.language_model_name not in model_with_no_token_types:
 			batch = {
 				'image_ids': torch.stack([x[0] for x in items], dim=0),
@@ -301,6 +301,7 @@ class ImageCaptionDataset(Dataset):
 				'caption_input_ids': torch.stack([x[2] for x in items], dim=0),
 				'caption_attention_masks': torch.stack([x[3] for x in items], dim=0)
 			}
+
 
 		return batch
 	

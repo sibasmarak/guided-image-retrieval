@@ -51,8 +51,8 @@ if __name__ == "__main__":
 
 	recall_ks = [int(r) for r in args.recall_ks.split(',')]
 
-	device = "cpu"
-	if torch.cuda.is_available(): device = torch.cuda.device("cuda:0")
+	device = torch.device("cpu")
+	if torch.cuda.is_available(): device = torch.device("cuda:0")
 
 	# dataloaders
 	train_dataloader, validation_dataloader, test_dataloader = None, None, None
@@ -86,7 +86,7 @@ if __name__ == "__main__":
 
 	# trainer        
 	trainer = pl.Trainer(max_epochs = args.max_epochs,
-						progress_bar_refresh_rate = args.progress_bar_refresh_rate, gpus = args.gpus, gradient_clip_val=args.gradient_clip_val, callbacks=[TestCallback(validation_dataloader, recall_ks)])
+						progress_bar_refresh_rate = args.progress_bar_refresh_rate, gpus = args.gpus, gradient_clip_val=args.gradient_clip_val, callbacks=[TestCallback(validation_dataloader, device, recall_ks)])
 						# add deterministic in Trainer if cannot reproduce results
 
 	if args.train and args.validation: trainer.fit(model, train_dataloader, validation_dataloader)

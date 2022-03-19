@@ -50,8 +50,9 @@ if __name__ == "__main__":
 
 	recall_ks = [int(r) for r in args.recall_ks.split(',')]
 
-	device = "cpu"
-	if torch.cuda.is_available(): device = torch.cuda.device("cuda:0")
+	print(f"CUDA Available: {torch.cuda.is_available()}")
+	device = torch.device("cpu")
+	if torch.cuda.is_available(): device = torch.device("cuda:0")
 
 
 	# # dataloaders
@@ -81,8 +82,8 @@ if __name__ == "__main__":
 	model = DualEncoder.load_from_checkpoint(args.checkpoint)
 
 	# trainer        
-	trainer = pl.Trainer(max_epochs = args.max_epochs,
-						progress_bar_refresh_rate = args.progress_bar_refresh_rate, gpus = args.gpus, gradient_clip_val=args.gradient_clip_val)
+	# trainer = pl.Trainer(max_epochs = args.max_epochs,
+	# 					progress_bar_refresh_rate = args.progress_bar_refresh_rate, gpus = args.gpus, gradient_clip_val=args.gradient_clip_val)
 						# add deterministic in Trainer if cannot reproduce results
 
 	# if args.train and args.validation: trainer.fit(model, train_dataloader, validation_dataloader)
@@ -91,6 +92,6 @@ if __name__ == "__main__":
 	# 	print("Testing on val")
 	# 	test_retrieval(model, validation_dataloader, recall_ks)
 	# else:
-	recalls = test_retrieval(model, test_dataloader, recall_ks)
+	recalls = test_retrieval(model, test_dataloader, device, recall_ks)
 	for i, k in enumerate(recall_ks):
 			print(f"Recall@{k}: ", recalls[i])
