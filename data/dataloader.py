@@ -188,7 +188,7 @@ class ImageCaptionDataset(Dataset):
 
 	def __init__(self, dataset, language_model_name = "bert", preprocess_text = True,
 				split='train', max_length_caption = 64, local_files_only = True, 
-				image_resize = (224, 224), warn_grayscale = False):
+				image_resize = (224, 224), warn_grayscale = False, eval = False):
 
 		self.dataset = dataset
 		self.language_model_name = language_model_name
@@ -212,20 +212,25 @@ class ImageCaptionDataset(Dataset):
 		i = 0
 		len_prepro_dict = len(list(self.preprocessed_dict.items()))
 		for image_ids, path_caption_dict in list(self.preprocessed_dict.items()):
-			num_captions = len(path_caption_dict['captions'])
+			if eval:
+				num_captions = 1
+			else:				
+				num_captions = len(path_caption_dict['captions'])
+
 			image_path = path_caption_dict['image_path']
 
 			# create the lists
 			self.image_ids.extend([image_ids] * num_captions)   
 			self.image_paths.extend([image_path] * num_captions)
+			captions = path_caption_dict['captions'][:num_captions]
 
 			for idx in range(num_captions):
 				if self.preprocess_text:
-					path_caption_dict['captions'][idx] = self.preprocess_caption(path_caption_dict['captions'][idx])
+					captions[idx] = self.preprocess_caption(captions[idx])
 
-				path_caption_dict['captions'][idx] = self.tokenizer(path_caption_dict['captions'][idx], max_length = self.max_length_caption, padding = 'max_length')
+				captions[idx] = self.tokenizer(captions[idx], max_length = self.max_length_caption, padding = 'max_length')
 
-			self.captions.extend(path_caption_dict['captions'])
+			self.captions.extend(captions)
 			if self.split == 'train' and i >= int(0.20 * len_prepro_dict):
 				break
 			i += 1

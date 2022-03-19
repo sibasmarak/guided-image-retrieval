@@ -64,13 +64,13 @@ if __name__ == "__main__":
 	if args.validation:
 		validation_data = ImageCaptionDataset(args.dataset, language_model_name = args.language_model_name, preprocess_text = args.preprocess_text, 
 								split='val', max_length_caption = args.max_length_caption, local_files_only = args.local_files_only, 
-								image_resize = args.image_resize, warn_grayscale = args.warn_grayscale)
+								image_resize = args.image_resize, warn_grayscale = args.warn_grayscale, eval=True)
 		validation_dataloader = DataLoader(validation_data, batch_size=args.batch_size, shuffle=False, collate_fn=validation_data.collater)
 	
 	if args.test:
 		test_data = ImageCaptionDataset(args.dataset, language_model_name = args.language_model_name, preprocess_text = args.preprocess_text, 
 								split='test', max_length_caption = args.max_length_caption, local_files_only = args.local_files_only, 
-								image_resize = args.image_resize, warn_grayscale = args.warn_grayscale)
+								image_resize = args.image_resize, warn_grayscale = args.warn_grayscale, eval=True)
 		test_dataloader = DataLoader(test_data, batch_size=args.batch_size, shuffle=False, collate_fn=test_data.collater)
 
 	# dataset = OldImageCaptionDataset(args.dataset, language_model_name = args.language_model_name, preprocess_text = args.preprocess_text,

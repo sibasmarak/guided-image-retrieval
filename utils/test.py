@@ -33,4 +33,8 @@ def test_retrieval(model, dataloader, k_s = [1, 5]): # dataloader should have sh
             total_recall += torch.sum(retrieval[:, :k])
         len_recall += retrieval.size(0)
     recalls = [float(total_recall)/len_recall for total_recall in total_recalls]
+<<<<<<< HEAD
     return recalls
+=======
+    return recalls
+>>>>>>> eval_script
