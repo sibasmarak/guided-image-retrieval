@@ -91,5 +91,6 @@ if __name__ == "__main__":
 	# 	print("Testing on val")
 	# 	test_retrieval(model, validation_dataloader, recall_ks)
 	# else:
-	test_retrieval(model, test_dataloader, recall_ks)
-
+	recalls = test_retrieval(model, test_dataloader, recall_ks)
+	for i, k in enumerate(recall_ks):
+			print(f"Recall@{k}: ", recalls[i])

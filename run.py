@@ -90,12 +90,12 @@ if __name__ == "__main__":
 
 	if args.train and args.validation: trainer.fit(model, train_dataloader, validation_dataloader)
 	if args.train: trainer.fit(model, train_dataloader)
-	if args.test is None:
-		print("Testing on val")
-		recalls = test_retrieval(model, validation_dataloader, recall_ks)
-		print("Recall@1: ", recalls[0])
-		print("Recall@5: ", recalls[1])
-	else:
+	print("Testing on val set")
+	recalls = test_retrieval(model, validation_dataloader, recall_ks)
+	for i, k in enumerate(recall_ks):
+		print(f"Recall@{k}: ", recalls[i])
+	if args.test:
+		print("Testing on test set")
 		recalls = test_retrieval(model, test_dataloader, recall_ks)
-		print("Recall@1: ", recalls[0])
-		print("Recall@5: ", recalls[1])
+		for i, k in enumerate(recall_ks):
+			print(f"Recall@{k}: ", recalls[i])
