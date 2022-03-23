@@ -1,5 +1,5 @@
 import argparse
-from src.model import LanguageModel, VisionModel, DualEncoder
+from src.model import LanguageModel, VisionModel, DualEncoder, SpatialInformationAggregatorModule
 from utils.loss import ContrastiveLoss
 from utils.env import set_seed
 from utils.test import test_retrieval
@@ -41,9 +41,9 @@ if __name__ == "__main__":
 	parser.add_argument('--warmup_epochs', default = 2, type = int)
 	parser.add_argument('--warn_grayscale', default = False, type = bool)
 	parser.add_argument('--weight_decay', default = 1e-4, type = float)
-	parser.add_argument('--recall_ks', default="1,5", type = str)
-
-
+	parser.add_argument('--recall_ks', default = "1,5", type = str)
+	parser.add_argument('--train_siam', default = False, type = bool)
+	
 	args = parser.parse_args()
 
 	set_seed(args.seed)
@@ -83,14 +83,14 @@ if __name__ == "__main__":
 				language_learning_rate = args.language_learning_rate, dropout = args.dropout, pretrained = args.pretrained, 
 				weight_decay=args.weight_decay, warmup_epochs = args.warmup_epochs)
 
-	# trainer        
+	# # trainer        
 	trainer = pl.Trainer(max_epochs = args.max_epochs,
 						progress_bar_refresh_rate = args.progress_bar_refresh_rate, gpus = args.gpus, gradient_clip_val=args.gradient_clip_val)
 						# add deterministic in Trainer if cannot reproduce results
 
 	if args.train and args.validation: trainer.fit(model, train_dataloader, validation_dataloader)
 	if args.train: trainer.fit(model, train_dataloader)
-	if args.test is None:
+	if not args.test:
 		print("Testing on val")
 		recalls = test_retrieval(model, validation_dataloader, recall_ks)
 		print("Recall@1: ", recalls[0])
@@ -99,3 +99,25 @@ if __name__ == "__main__":
 		recalls = test_retrieval(model, test_dataloader, recall_ks)
 		print("Recall@1: ", recalls[0])
 		print("Recall@5: ", recalls[1])
+	
+	if args.train_siam:
+
+		siam_model = SpatialInformationAggregatorModule(model, height = 224, width = 224, num_channels = 3, 
+					output_size = 512, pretrained = True, learning_rate = 1e-4, weight_decay = 1e-4)
+
+		siam_trainer = pl.Trainer(max_epochs = args.max_epochs,
+							progress_bar_refresh_rate = args.progress_bar_refresh_rate, gpus = args.gpus, gradient_clip_val=args.gradient_clip_val)
+
+
+
+		if args.train and args.validation: siam_trainer.fit(siam_model, train_dataloader, validation_dataloader)
+		if args.train: siam_trainer.fit(siam_model, train_dataloader)
+		if not args.test:
+			print("Testing on val")
+			recalls = test_retrieval(siam_model, validation_dataloader, recall_ks)
+			print("Recall@1: ", recalls[0])
+			print("Recall@5: ", recalls[1])
+		else:
+			recalls = test_retrieval(siam_model, test_dataloader, recall_ks)
+			print("Recall@1: ", recalls[0])
+			print("Recall@5: ", recalls[1])
