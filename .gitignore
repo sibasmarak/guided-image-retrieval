@@ -8,3 +8,4 @@ pretrained
 lightning_logs
 core*
 test.pbs*
+*.pyc

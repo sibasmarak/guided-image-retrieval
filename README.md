@@ -15,4 +15,6 @@
   - `python data/preprocess_data.py --dataset coco --data_path datasets/coco/annotations/captions_train2014.json --split train`  
   For Flickr30k  
   - `python data/preprocess_data.py --dataset flickr30k --data_path datasets/flickr30k/flickr30k-captions/dataset.json --split all`
-- `python run.py` (to train/evaluate)
+- `python run.py` (to train/evaluate)  
+
+- `python run.py --gpus 1 --batch_size 32 --train_siam True`  

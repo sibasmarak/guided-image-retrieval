@@ -1,8 +1,9 @@
 import argparse
-from src.model import LanguageModel, VisionModel, DualEncoder
+from src.model import LanguageModel, VisionModel, DualEncoder, SpatialInformationAggregatorModule
+from gc import callbacks
 from utils.loss import ContrastiveLoss
 from utils.env import set_seed
-from utils.test import test_retrieval
+# from utils.test import test_retrieval, TestCallback
 from data.dataloader import ImageCaptionDataset, OldImageCaptionDataset
 
 import pytorch_lightning as pl
@@ -12,12 +13,13 @@ from torch.utils.data import DataLoader
 if __name__ == "__main__":
 
 	parser = argparse.ArgumentParser()
+	parser.add_argument('--accelerator', default = "dp", type = str)	# 64, 128
 	parser.add_argument('--batch_size', default = 128, type = int)	# 64, 128
 	parser.add_argument('--dataset', default = 'coco', type = str, choices=['cc', 'coco', 'flickr30k'])
 	parser.add_argument('--deterministic', default = True, type = bool)
 	parser.add_argument('--dropout', default = 0.4, type = float)
 	parser.add_argument('--gradient_clip_val', default = 30.0, type = float)
-	parser.add_argument('--gpus', default = 2, type = int)
+	parser.add_argument('--gpus', type = str) # 1 -> [1]; 0,1 -> [0, 1]
 	parser.add_argument('--image_resize', default = (224, 224), type = tuple)
 	parser.add_argument('--language_input_size', default = 768, type = int)
 	parser.add_argument('--language_model_name', default = 'bert', type = str)
@@ -41,17 +43,18 @@ if __name__ == "__main__":
 	parser.add_argument('--warmup_epochs', default = 2, type = int)
 	parser.add_argument('--warn_grayscale', default = False, type = bool)
 	parser.add_argument('--weight_decay', default = 1e-4, type = float)
-	parser.add_argument('--recall_ks', default="1,5", type = str)
-
-
+	parser.add_argument('--recall_ks', default = "1,5", type = str)
+	parser.add_argument('--train_siam', default = False, type = bool)
+	
 	args = parser.parse_args()
 
 	set_seed(args.seed)
 
+	args.gpus = [int(item) for item in args.gpus.split(',')] # [0, 1]
 	recall_ks = [int(r) for r in args.recall_ks.split(',')]
 
-	device = "cpu"
-	if torch.cuda.is_available(): device = torch.cuda.device("cuda:0")
+	device = torch.device("cpu")
+	if torch.cuda.is_available(): device = torch.device("cuda:1")
 
 	# dataloaders
 	train_dataloader, validation_dataloader, test_dataloader = None, None, None
@@ -64,13 +67,13 @@ if __name__ == "__main__":
 	if args.validation:
 		validation_data = ImageCaptionDataset(args.dataset, language_model_name = args.language_model_name, preprocess_text = args.preprocess_text, 
 								split='val', max_length_caption = args.max_length_caption, local_files_only = args.local_files_only, 
-								image_resize = args.image_resize, warn_grayscale = args.warn_grayscale)
+								image_resize = args.image_resize, warn_grayscale = args.warn_grayscale, eval=True)
 		validation_dataloader = DataLoader(validation_data, batch_size=args.batch_size, shuffle=False, collate_fn=validation_data.collater)
 	
 	if args.test:
 		test_data = ImageCaptionDataset(args.dataset, language_model_name = args.language_model_name, preprocess_text = args.preprocess_text, 
 								split='test', max_length_caption = args.max_length_caption, local_files_only = args.local_files_only, 
-								image_resize = args.image_resize, warn_grayscale = args.warn_grayscale)
+								image_resize = args.image_resize, warn_grayscale = args.warn_grayscale, eval=True)
 		test_dataloader = DataLoader(test_data, batch_size=args.batch_size, shuffle=False, collate_fn=test_data.collater)
 
 	# dataset = OldImageCaptionDataset(args.dataset, language_model_name = args.language_model_name, preprocess_text = args.preprocess_text,
@@ -83,19 +86,44 @@ if __name__ == "__main__":
 				language_learning_rate = args.language_learning_rate, dropout = args.dropout, pretrained = args.pretrained, 
 				weight_decay=args.weight_decay, warmup_epochs = args.warmup_epochs)
 
-	# trainer        
-	trainer = pl.Trainer(max_epochs = args.max_epochs,
-						progress_bar_refresh_rate = args.progress_bar_refresh_rate, gpus = args.gpus, gradient_clip_val=args.gradient_clip_val)
-						# add deterministic in Trainer if cannot reproduce results
+	# # trainer        
+	# trainer = pl.Trainer(max_epochs = args.max_epochs,
+	# 					progress_bar_refresh_rate = args.progress_bar_refresh_rate, gpus = args.gpus, gradient_clip_val=args.gradient_clip_val)
+	# 					# add deterministic in Trainer if cannot reproduce results
 
-	if args.train and args.validation: trainer.fit(model, train_dataloader, validation_dataloader)
-	if args.train: trainer.fit(model, train_dataloader)
-	if args.test is None:
-		print("Testing on val")
-		recalls = test_retrieval(model, validation_dataloader, recall_ks)
-		print("Recall@1: ", recalls[0])
-		print("Recall@5: ", recalls[1])
-	else:
-		recalls = test_retrieval(model, test_dataloader, recall_ks)
-		print("Recall@1: ", recalls[0])
-		print("Recall@5: ", recalls[1])
+	# if args.train and args.validation: trainer.fit(model, train_dataloader, validation_dataloader)
+	# if args.train: trainer.fit(model, train_dataloader)
+	# if not args.test:
+	# 	print("Testing on val set")
+	# 	recalls = test_retrieval(model, validation_dataloader, recall_ks)
+	# 	for i, k in enumerate(recall_ks):
+	# 		print(f"Recall@{k}: ", recalls[i])
+	# if args.test:
+	# 	print("Testing on test set")
+	# 	recalls = test_retrieval(model, test_dataloader, recall_ks)
+	# 	for i, k in enumerate(recall_ks):
+	# 		print(f"Recall@{k}: ", recalls[i])
+	
+	if args.train_siam:
+
+		siam_model = SpatialInformationAggregatorModule(model, height = 7, width = 7, num_channels = 2048, 
+					output_size = 512, pretrained = True, learning_rate = 1e-4, weight_decay = 1e-4)
+
+		siam_trainer = pl.Trainer(max_epochs = args.max_epochs,
+							progress_bar_refresh_rate = args.progress_bar_refresh_rate, gpus = args.gpus, 
+							gradient_clip_val=args.gradient_clip_val ,accelerator = args.accelerator)
+
+
+
+		if args.train and args.validation: siam_trainer.fit(siam_model, train_dataloader, validation_dataloader)
+		if args.train: siam_trainer.fit(siam_model, train_dataloader)
+		# if not args.test:
+		# 	print("Testing on val set")
+		# 	recalls = test_retrieval(model, validation_dataloader, recall_ks)
+		# 	for i, k in enumerate(recall_ks):
+		# 		print(f"Recall@{k}: ", recalls[i])
+		# if args.test:
+		# 	print("Testing on test set")
+		# 	recalls = test_retrieval(model, test_dataloader, recall_ks)
+		# 	for i, k in enumerate(recall_ks):
+		# 		print(f"Recall@{k}: ", recalls[i])

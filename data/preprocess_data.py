@@ -103,7 +103,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    preprocessed_dict = preprocess(args.data_path, args.dataset, args.split)
+    preprocessed_dict = preprocess(args.data_path, args.dataset, split = args.split)
     save_path = open(f'./datasets/{args.dataset}/{args.split}_image_captions.json', 'w')
     json.dump(preprocessed_dict, save_path)
 
