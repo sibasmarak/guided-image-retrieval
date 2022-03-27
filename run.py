@@ -86,17 +86,17 @@ if __name__ == "__main__":
 
 	# trainer        
 	trainer = pl.Trainer(max_epochs = args.max_epochs,
-						progress_bar_refresh_rate = args.progress_bar_refresh_rate, gpus = args.gpus, gradient_clip_val=args.gradient_clip_val, callbacks=[TestCallback(validation_dataloader, device, recall_ks)])
+						progress_bar_refresh_rate = args.progress_bar_refresh_rate, gpus = args.gpus, gradient_clip_val=args.gradient_clip_val)
 						# add deterministic in Trainer if cannot reproduce results
 
 	if args.train and args.validation: trainer.fit(model, train_dataloader, validation_dataloader)
 	if args.train: trainer.fit(model, train_dataloader)
 	print("Testing on val set")
-	recalls = test_retrieval(model, validation_dataloader, recall_ks)
+	recalls = test_retrieval(model, validation_dataloader, device, recall_ks)
 	for i, k in enumerate(recall_ks):
 		print(f"Recall@{k}: ", recalls[i])
 	if args.test:
 		print("Testing on test set")
-		recalls = test_retrieval(model, test_dataloader, recall_ks)
+		recalls = test_retrieval(model, test_dataloader, device, recall_ks)
 		for i, k in enumerate(recall_ks):
 			print(f"Recall@{k}: ", recalls[i])
