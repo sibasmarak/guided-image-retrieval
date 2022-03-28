@@ -51,7 +51,7 @@ if __name__ == "__main__":
 
 	set_seed(args.seed)
 
-	args.gpus = [int(item) for item in args.gpus.split(',')] # [0, 1]
+	args.gpus = [int(item) for item in args.gpus.split(',')]
 	recall_ks = [int(r) for r in args.recall_ks.split(',')]
 
 	device = torch.device("cpu")
@@ -81,34 +81,42 @@ if __name__ == "__main__":
 	
 	
 	
+	# models    
+	model_de = DualEncoder(args.vision_model_name, args.language_model_name, language_input_size = args.language_input_size, 
+				vision_hidden_size = args.vision_hidden_size, output_size = args.output_size, vision_learning_rate = args.vision_learning_rate,
+				language_learning_rate = args.language_learning_rate, dropout = args.dropout, pretrained = args.pretrained, 
+				weight_decay=args.weight_decay, warmup_epochs = args.warmup_epochs)
+	model_siam = None
+
+	
+	
+	
+	
+	
+	
+	
 	# training
 	if args.train_de:
-		# model    
-		model = DualEncoder(args.vision_model_name, args.language_model_name, language_input_size = args.language_input_size, 
-					vision_hidden_size = args.vision_hidden_size, output_size = args.output_size, vision_learning_rate = args.vision_learning_rate,
-					language_learning_rate = args.language_learning_rate, dropout = args.dropout, pretrained = args.pretrained, 
-					weight_decay=args.weight_decay, warmup_epochs = args.warmup_epochs)
-
 		# # trainer        
 		trainer = pl.Trainer(max_epochs = args.max_epochs,
 							progress_bar_refresh_rate = args.progress_bar_refresh_rate, gpus = args.gpus, gradient_clip_val=args.gradient_clip_val)
 							# add deterministic in Trainer if cannot reproduce results
 
-		if args.train and args.validation: trainer.fit(model, train_dataloader, validation_dataloader)
-		if args.train: trainer.fit(model, train_dataloader)
+		if args.train and args.validation: trainer.fit(model_de, train_dataloader, validation_dataloader)
+		if args.train: trainer.fit(model_de, train_dataloader)
 	
 	if args.train_siam:
-		model = SpatialInformationAggregatorModule(model, height = 7, width = 7, num_channels = 2048, 
+		model_siam = SpatialInformationAggregatorModule(model_de, height = 7, width = 7, num_channels = 2048, 
 					output_size = 512, pretrained = True, learning_rate = 1e-4, weight_decay = 1e-4)
 
 		siam_trainer = pl.Trainer(max_epochs = args.max_epochs,
 							progress_bar_refresh_rate = args.progress_bar_refresh_rate, gpus = args.gpus, 
-							gradient_clip_val=args.gradient_clip_val, accelerator = args.accelerator)
+							gradient_clip_val=args.gradient_clip_val, strategy = args.accelerator)
 
 
 
-		if args.train and args.validation: siam_trainer.fit(model, train_dataloader, validation_dataloader)
-		if args.train: siam_trainer.fit(model, train_dataloader)
+		if args.train and args.validation: siam_trainer.fit(model_siam, train_dataloader, validation_dataloader)
+		if args.train: siam_trainer.fit(model_siam, train_dataloader)
 
 
 	
@@ -117,11 +125,22 @@ if __name__ == "__main__":
 	# testing
 	if not args.test:
 		print("Testing on val set")
-		recalls = test_retrieval(model, validation_dataloader, device, recall_ks)
+		if model_siam:
+			# not checked
+			recalls = test_retrieval(model_siam, validation_dataloader, device, recall_ks)
+		else:
+			# checked
+			recalls = test_retrieval(model_de, validation_dataloader, device, recall_ks)
+
 		for i, k in enumerate(recall_ks):
 			print(f"Recall@{k}: ", recalls[i])
 	else:
 		print("Testing on test set")
-		recalls = test_retrieval(model, test_dataloader, device, recall_ks)
+		if model_siam:
+			# not checked
+			recalls = test_retrieval(model_siam, test_dataloader, device, recall_ks)
+		else:
+			# checked
+			recalls = test_retrieval(model_de, test_dataloader, device, recall_ks)
 		for i, k in enumerate(recall_ks):
 			print(f"Recall@{k}: ", recalls[i])
