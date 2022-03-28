@@ -87,17 +87,15 @@ class ImageCaptionDataset(Dataset):
 		
 		image = self.transform(image)
 
-
 		# obtain the text
 		# caption = self.captions[idx]
 		encoded_caption = self.captions[idx]
-		# if self.preprocess_text:
-		# 	caption = self.preprocess_caption(caption)
+		if self.preprocess_text:
+			caption = self.preprocess_caption(caption)
 
-
-		# tokenize the caption
-		# encoded_caption = self.tokenizer(caption, max_length = self.max_length_caption, padding = 'max_length')
-
+		if encoded_caption is None:
+			# tokenize the caption
+			encoded_caption = self.tokenizer(caption, max_length = self.max_length_caption, padding = 'max_length')
 
 		caption_input_ids = encoded_caption['input_ids']
 		caption_attention_masks = encoded_caption['attention_mask']
@@ -129,7 +127,6 @@ class ImageCaptionDataset(Dataset):
 				'caption_input_ids': torch.stack([x[2] for x in items], dim=0),
 				'caption_attention_masks': torch.stack([x[3] for x in items], dim=0)
 			}
-
 
 		return batch
 	
