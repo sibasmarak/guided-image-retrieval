@@ -1,214 +1,22 @@
 # Import the required libraries
 import torch
 import timm, time
-import torch.nn as nn
-from transformers import AutoModel
-from utils.env import *
-from utils.loss import ContrastiveLoss
-from collections import OrderedDict
-
-import torchmetrics
-import pytorch_lightning as pl
-# from pytorch_lightning.loggers import TensorBoardLogger
-from pytorch_metric_learning import losses
-import torch.nn.functional as F
-from torch import optim
-
-from torch.optim.lr_scheduler import CosineAnnealingLR
 import torchvision
-
-# Language model
-class LanguageModel(nn.Module):
-
-    def __init__(self, model_name, input_size = 768, output_size = 512, dropout=0.4):
-        super(LanguageModel, self).__init__()
-        
-        self.model_name = model_name
-        self.model_path = model_modelpath_mapping[self.model_name]
-        self.input_size = input_size
-        self.output_size = output_size
-        self.dropout = dropout
-
-        # Instantiating Pre trained model object 
-        self.model = AutoModel.from_pretrained(self.model_path)
-        # for name, p in self.model.named_parameters():
-        #     p.requires_grad = False
-
-        # Layers
-        # the first dense layer will have 768 neurons if base model is used and 
-        # 1024 neurons if large model is used
-
-        self.dense = nn.Linear(self.input_size, self.output_size)
-
-    def forward(self, input_ids, attention_masks = None, token_type_ids = None):
-
-        x = self.model(input_ids = input_ids, attention_mask = attention_masks,
-                            token_type_ids = token_type_ids).pooler_output
-        x = self.dense(x)
-        return x
-
-# TODO: Try later
-# Use for non-BERT models
-class NonPoolerTransformer(nn.Module):
-
-    def __init__(self):
-        super(NonPoolerTransformer, self).__init__()
-        
-        # Instantiating Pre trained model object 
-        self.model_layer = AutoModel.from_pretrained(model_path)
-
-        # Layers
-        # the first dense layer will have 768 if base model is used and 
-        # 1024 if large model is used
-
-        self.dense_layer_1 = nn.Linear(768, 256)
-        self.dropout = nn.Dropout(0.4)
-        self.dense_layer_2 = nn.Linear(256, 128)
-        self.dropout_2 = nn.Dropout(0.2)
-        self.cls_layer = nn.Linear(128, 1, bias = True)
-        self.sigmoid = nn.Sigmoid()
-
-    def forward(self,input_ids, attention_masks=None):
-
-        hidden_state = self.model_layer(input_ids=input_ids, attention_mask=attention_masks)[0]
-        pooled_output = hidden_state[:, 0]
-
-        x = self.dense_layer_1(pooled_output)
-        x = self.dropout(x)
-        x_1 = self.dense_layer_2(x)
-        x_2 = self.dropout_2(x_1)
-
-        logits = self.cls_layer(x_2)
-        output = self.sigmoid(logits)
-
-        return output
-
-class VisionModel(nn.Module):
-
-    def __init__(self, model_name, hidden_size = 2048, output_size = 512, pretrained = True):
-        super(VisionModel, self).__init__()
-
-        self.model_name = model_name
-        self.hidden_size = hidden_size
-        self.output_size = output_size
-        self.pretrained = pretrained
-
-        model = timm.create_model(self.model_name, pretrained = self.pretrained)
-        dense = nn.Linear(model.fc.in_features, self.output_size)
-        model.reset_classifier(0)
-        self.model = nn.Sequential(OrderedDict([
-            ('backbone', model),
-            ('dense', dense)
-        ]))
-
-    def forward(self, x):
-        x = self.model(x)
-        return x
-
-class DualEncoder(pl.LightningModule):
-
-    def __init__(self, vision_model_name, language_model_name, language_input_size = 768, 
-                vision_hidden_size = 2048, output_size = 512, vision_learning_rate=1e-2, 
-                language_learning_rate = 1e-5, dropout = 0.4, pretrained = True, weight_decay=1e-4,
-                warmup_epochs = 2):
-        super().__init__()
-
-        # 'save_hyperparameters' saves the values of anything in the __init__ for us to the checkpoint.
-        # This is a useful feature.
-
-        self.save_hyperparameters()
-
-        self.vision_model_name = vision_model_name
-        self.language_model_name = language_model_name
-        self.language_input_size = language_input_size
-        self.vision_hidden_size = vision_hidden_size
-        self.output_size = output_size
-        self.vision_learning_rate = vision_learning_rate
-        self.language_learning_rate = language_learning_rate
-        self.weight_decay = weight_decay
-        self.dropout = dropout
-        self.pretrained = pretrained
-        self.warmup_epochs = warmup_epochs
-
-        self.loss_cls = ContrastiveLoss()
-
-        self.vision_model = VisionModel(self.vision_model_name, hidden_size = self.vision_hidden_size, 
-                                        output_size = self.output_size, pretrained = self.pretrained)
-        self.language_model = LanguageModel(self.language_model_name, input_size = language_input_size, 
-                                            output_size = self.output_size, dropout = self.dropout)
-    
-        self.accuracy = torchmetrics.Accuracy()
-    
-    def on_epoch_start(self):
-        print('\n')
-
-    def forward(self, image, text_input_ids, attention_masks = None, token_type_ids = None):
-        
-        image_features = self.vision_model(image)
-        text_features = self.language_model(text_input_ids, attention_masks = attention_masks, token_type_ids = token_type_ids)
-
-        return image_features, text_features
-    
-    def training_step(self, batch, batch_idx, optimizer_idx):
-    # def training_step(self, batch, batch_idx):
-        image_features, text_features = self.forward(batch['images'], batch['caption_input_ids'], batch['caption_attention_masks'], batch['caption_token_type_ids'])
-        loss = self.loss_cls(image_features, text_features, batch['image_ids'])
-        self.vision_scheduler.step()
-        self.language_scheduler.step()
-        # image_features, text_features = self.forward(batch[0], batch[1], batch[2], batch[3])
-        # loss = self.loss_cls(image_features, text_features, batch[4])
-        # print('Loss:', loss)
-
-        # Logging training loss on each training step and also on each epoch
-        # self.log('train_loss', loss, on_step=True, on_epoch=True, logger=False)
-
-        return loss
-    
-    def validation_step(self, batch, batch_idx):
-        image_features, text_features = self.forward(batch['images'], batch['caption_input_ids'], batch['caption_attention_masks'], batch['caption_token_type_ids'])
-        loss = self.loss_cls(image_features, text_features, batch['image_ids'])
-        # image_features, text_features = self.forward(batch[0], batch[1], batch[2], batch[3])
-        # loss = self.loss_cls(image_features, text_features, batch[4])
-        # print("Val loss: ", loss)
-
-        # Logging training loss on each training step and also on each epoch
-        # self.log('val_loss', loss, on_step=True, on_epoch=True, logger=False)
-
-        return loss
-    
-    def test_step(self, batch, batch_idx):
-        image_features, text_features = self.forward(batch['images'], batch['caption_input_ids'], batch['caption_attention_masks'], batch['caption_token_type_ids'])
-        loss = self.loss_cls(image_features, text_features, batch['image_ids'])
-
-        # Logging training loss on each training step and also on each epoch
-        # self.log('test_loss', loss, on_step=True, on_epoch=True, logger=False)
-
-        return loss
-    
-    def configure_optimizers(self):
-        # self.hparams available because we called self.save_hyperparameters()
-        vision_optimizer = optim.Adam(self.vision_model.parameters(), lr=self.hparams.vision_learning_rate, weight_decay=self.weight_decay)
-        language_optimizer = optim.Adam(self.language_model.parameters(), lr=self.hparams.language_learning_rate, weight_decay=self.weight_decay)
-        # optimizer = optim.Adam(self.parameters(), lr=self.hparams.language_learning_rate, weight_decay=self.weight_decay)
-        # return optimizer
-        self.vision_scheduler = CosineAnnealingLR(vision_optimizer, T_max = self.warmup_epochs)
-        self.language_scheduler = CosineAnnealingLR(language_optimizer, T_max = self.warmup_epochs)
-        return [vision_optimizer, language_optimizer]
-
-
+import torchmetrics
+import torch.nn as nn
+from utils.env import *
+from torch import optim
+from torch import Tensor
+import pytorch_lightning as pl
+import torch.nn.functional as F
+from transformers import AutoModel
+from collections import OrderedDict
+from utils.loss import ContrastiveLoss
+from torch.hub import load_state_dict_from_url
+from torch.optim.lr_scheduler import CosineAnnealingLR
 from typing import Type, Any, Callable, Union, List, Optional
 
-import torch
-import torch.nn as nn
-from torch import Tensor
-
-from torch.hub import load_state_dict_from_url
-# from torch.utils import _log_api_usage_once
-
-# from .._internally_replaced_utils import load_state_dict_from_url
-# from ..utils import _log_api_usage_once
-
-
+# ResNet model names
 __all__ = [
     "ResNet",
     "resnet18",
@@ -222,7 +30,7 @@ __all__ = [
     "wide_resnet101_2",
 ]
 
-
+# ResNet Model URLs
 model_urls = {
     "resnet18": "https://download.pytorch.org/models/resnet18-f37072fd.pth",
     "resnet34": "https://download.pytorch.org/models/resnet34-b627a593.pth",
@@ -235,7 +43,7 @@ model_urls = {
     "wide_resnet101_2": "https://download.pytorch.org/models/wide_resnet101_2-32ee1156.pth",
 }
 
-
+# ResNet Architecture Definition
 def conv3x3(in_planes: int, out_planes: int, stride: int = 1, groups: int = 1, dilation: int = 1) -> nn.Conv2d:
     """3x3 convolution with padding"""
     return nn.Conv2d(
@@ -303,7 +111,6 @@ class BasicBlock(nn.Module):
 
         return out
 
-
 class Bottleneck(nn.Module):
     # Bottleneck in torchvision places the stride for downsampling at 3x3 convolution(self.conv2)
     # while original implementation places the stride at the first 1x1 convolution(self.conv1)
@@ -360,7 +167,6 @@ class Bottleneck(nn.Module):
         out = self.relu(out)
 
         return out
-
 
 class ResNet(nn.Module):
     def __init__(
@@ -474,10 +280,12 @@ class ResNet(nn.Module):
         x = self.layer3(x)
         x = self.layer4(x)
 
+        # Guiding vectors
         alpha = alpha.view((alpha.shape[0], 1, alpha.shape[1], 1))
         beta = beta.view((beta.shape[0], 1, 1, beta.shape[1]))
         gamma = gamma.view((gamma.shape[0], gamma.shape[1], 1, 1))
 
+        # Changing activation of head
         x = x + alpha * x + beta * x + gamma * x
 
         x = self.avgpool(x)
@@ -485,13 +293,8 @@ class ResNet(nn.Module):
 
         return x
 
-        # x = self.fc(x)
-
-        # return x
-
     def forward(self, x: Tensor, alpha: Tensor, beta: Tensor, gamma: Tensor) -> Tensor:
         return self._forward_impl(x, alpha, beta, gamma)
-
 
 def _resnet(
     arch: str,
@@ -611,19 +414,147 @@ def wide_resnet101_2(pretrained: bool = False, progress: bool = True, **kwargs: 
     kwargs["width_per_group"] = 64 * 2
     return _resnet("wide_resnet101_2", Bottleneck, [3, 4, 23, 3], pretrained, progress, **kwargs)
 
+# Language model (only bert based models)
+class LanguageModel(nn.Module):
 
+    def __init__(self, model_name, input_size = 768, output_size = 512, dropout=0.4):
+        super(LanguageModel, self).__init__()
+        
+        self.model_name = model_name
+        self.model_path = model_modelpath_mapping[self.model_name]
+        self.input_size = input_size
+        self.output_size = output_size
+        self.dropout = dropout
 
+        # Instantiating Pre trained model object 
+        self.model = AutoModel.from_pretrained(self.model_path)
+        self.dense = nn.Linear(self.input_size, self.output_size)
+
+    def forward(self, input_ids, attention_masks = None, token_type_ids = None):
+
+        x = self.model(input_ids = input_ids, attention_mask = attention_masks,
+                            token_type_ids = token_type_ids).pooler_output
+        x = self.dense(x)
+        return x
+
+# Vision Model
+class VisionModel(nn.Module):
+
+    def __init__(self, model_name, hidden_size = 2048, output_size = 512, pretrained = True):
+        super(VisionModel, self).__init__()
+
+        self.model_name = model_name
+        self.hidden_size = hidden_size
+        self.output_size = output_size
+        self.pretrained = pretrained
+
+        model = timm.create_model(self.model_name, pretrained = self.pretrained)
+        dense = nn.Linear(model.fc.in_features, self.output_size)
+        model.reset_classifier(0)
+        self.model = nn.Sequential(OrderedDict([
+            ('backbone', model),
+            ('dense', dense)
+        ]))
+
+    def forward(self, x):
+        x = self.model(x)
+        return x
+
+# Dual Encoder Model
+class DualEncoder(pl.LightningModule):
+
+    def __init__(self, vision_model_name, language_model_name, language_input_size = 768, 
+                vision_hidden_size = 2048, output_size = 512, vision_learning_rate=1e-2, 
+                language_learning_rate = 1e-5, dropout = 0.4, vision_pretrained = False, 
+                language_pretrained = True, weight_decay=1e-4,
+                warmup_epochs = 2):
+        super().__init__()
+
+        self.save_hyperparameters()
+
+        self.vision_model_name = vision_model_name
+        self.language_model_name = language_model_name
+        self.language_input_size = language_input_size
+        self.vision_hidden_size = vision_hidden_size
+        self.output_size = output_size
+        self.vision_learning_rate = vision_learning_rate
+        self.language_learning_rate = language_learning_rate
+        self.weight_decay = weight_decay
+        self.dropout = dropout
+        self.vision_pretrained = vision_pretrained
+        self.language_pretrained = language_pretrained
+        self.warmup_epochs = warmup_epochs
+
+        self.loss_cls = ContrastiveLoss()
+
+        self.vision_model = VisionModel(self.vision_model_name, hidden_size = self.vision_hidden_size, 
+                                        output_size = self.output_size, pretrained = self.vision_pretrained)
+        self.language_model = LanguageModel(self.language_model_name, input_size = language_input_size, 
+                                            output_size = self.output_size, dropout = self.dropout)
+    
+        self.accuracy = torchmetrics.Accuracy()
+    
+    def on_epoch_start(self):
+        print('\n')
+
+    def forward(self, image, text_input_ids, attention_masks = None, token_type_ids = None):
+        
+        image_features = self.vision_model(image)
+        text_features = self.language_model(text_input_ids, attention_masks = attention_masks, token_type_ids = token_type_ids)
+
+        return image_features, text_features
+    
+    def training_step(self, batch, batch_idx, optimizer_idx):
+        
+        image_features, text_features = self.forward(batch['images'], batch['caption_input_ids'], batch['caption_attention_masks'], batch['caption_token_type_ids'])
+        loss = self.loss_cls(image_features, text_features, batch['image_ids'])
+        
+        self.vision_scheduler.step()
+        self.language_scheduler.step()
+
+        return loss
+    
+    def validation_step(self, batch, batch_idx):
+
+        image_features, text_features = self.forward(batch['images'], batch['caption_input_ids'], batch['caption_attention_masks'], batch['caption_token_type_ids'])
+        loss = self.loss_cls(image_features, text_features, batch['image_ids'])
+
+        return loss
+    
+    def test_step(self, batch, batch_idx):
+
+        image_features, text_features = self.forward(batch['images'], batch['caption_input_ids'], batch['caption_attention_masks'], batch['caption_token_type_ids'])
+        loss = self.loss_cls(image_features, text_features, batch['image_ids'])
+
+        return loss
+    
+    def configure_optimizers(self):
+
+        vision_optimizer = optim.Adam(self.vision_model.parameters(), lr=self.hparams.vision_learning_rate, weight_decay=self.weight_decay)
+        language_optimizer = optim.Adam(self.language_model.parameters(), lr=self.hparams.language_learning_rate, weight_decay=self.weight_decay)
+
+        self.vision_scheduler = CosineAnnealingLR(vision_optimizer, T_max = self.warmup_epochs)
+        self.language_scheduler = CosineAnnealingLR(language_optimizer, T_max = self.warmup_epochs)
+
+        return [vision_optimizer, language_optimizer]
+
+# Spatial Information Aggregator Model
 class SpatialInformationAggregatorModule(pl.LightningModule):
 
     def __init__(self, dual_encoder, height = 7, width = 7, num_channels = 2048, 
-                output_size = 512, pretrained = True, learning_rate = 1e-4, weight_decay = 1e-4):
+                output_size = 512, pretrained = True, learning_rate = 1e-4, weight_decay = 1e-4,
+                trainable_backbone_layers = 0, rpn_post_nms_top_n_test = 50):
         super().__init__()
 
         # self.save_hyperparameters()
 
         self.pretrained = pretrained
+        self.trainable_backbone_layers = trainable_backbone_layers
+        self.rpn_post_nms_top_n_test = rpn_post_nms_top_n_test
+
         self.object_detection_model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained = self.pretrained, 
-                                        trainable_backbone_layers=0, rpn_post_nms_top_n_test=50)
+                                        trainable_backbone_layers = self.trainable_backbone_layers, 
+                                        rpn_post_nms_top_n_test = self.rpn_post_nms_top_n_test)
 
         self.object_detection_model.eval()
 
@@ -656,13 +587,11 @@ class SpatialInformationAggregatorModule(pl.LightningModule):
 
         self.ROI_features = [] 
         def save_features(model, input, output):
-            dim0 = output.shape[0] // 50
-            output = output.view((dim0, 50, output.shape[1])) # 8 x 50 x 1024
+            dim0 = output.shape[0] // self.rpn_post_nms_top_n_test
+            output = output.view((dim0, self.rpn_post_nms_top_n_test, output.shape[1])) # 8 x 50 x 1024
             self.ROI_features.append(output.data) 
 
-         # you can also hook layers inside the roi_heads
         layer_to_hook = 'roi_heads.box_head.fc7'
-        # layer_to_hook = 'roi_heads.box_head'
         for name, layer in self.object_detection_model.named_modules():
             if name == layer_to_hook:
                 layer.register_forward_hook(save_features)
@@ -675,9 +604,6 @@ class SpatialInformationAggregatorModule(pl.LightningModule):
         self.ROI_features.clear()      
         _ = self.object_detection_model(image)
         roi_features = self.ROI_features[0].to(device=image.device)
-
-        # Life lesson: Always read the parameters/documentation of models/scripts you are picking up from the internet. 
-        # They might be generic enough that you don't have to waste a day :)
         
         aggregated_features = []
         for idx, roi_feature in enumerate(roi_features):
@@ -699,51 +625,39 @@ class SpatialInformationAggregatorModule(pl.LightningModule):
 
         return image_features, text_features
 
-    def training_step(self, batch, batch_idx):
+    def on_epoch_start(self):
+
+        print("\n")
         self.dual_encoder.eval()
         self.object_detection_model.eval()
+
+    def training_step(self, batch, batch_idx):
+        
         image_features, text_features = self.forward(batch['images'], batch['caption_input_ids'], batch['caption_attention_masks'], batch['caption_token_type_ids'])
         loss = self.loss_cls(image_features, text_features, batch['image_ids'])
 
         return loss
     
     def validation_step(self, batch, batch_idx):
+        
         image_features, text_features = self.forward(batch['images'], batch['caption_input_ids'], batch['caption_attention_masks'], batch['caption_token_type_ids'])
         loss = self.loss_cls(image_features, text_features, batch['image_ids'])
-        # image_features, text_features = self.forward(batch[0], batch[1], batch[2], batch[3])
-        # loss = self.loss_cls(image_features, text_features, batch[4])
-        # print("Val loss: ", loss)
-
-        # Logging training loss on each training step and also on each epoch
-        # self.log('val_loss', loss, on_step=True, on_epoch=True, logger=False)
 
         return loss
     
     def test_step(self, batch, batch_idx):
+        
         image_features, text_features = self.forward(batch['images'], batch['caption_input_ids'], batch['caption_attention_masks'], batch['caption_token_type_ids'])
         loss = self.loss_cls(image_features, text_features, batch['image_ids'])
-
-        # Logging training loss on each training step and also on each epoch
-        # self.log('test_loss', loss, on_step=True, on_epoch=True, logger=False)
 
         return loss
 
     def configure_optimizers(self):
-        # self.hparams available because we called self.save_hyperparameters()
-        # vision_optimizer = optim.Adam(self.vision_model.parameters(), lr=self.hparams.vision_learning_rate, weight_decay=self.weight_decay)
-        # language_optimizer = optim.Adam(self.language_model.parameters(), lr=self.hparams.language_learning_rate, weight_decay=self.weight_decay)
-        # optimizer = optim.Adam(self.parameters(), lr=self.hparams.language_learning_rate, weight_decay=self.weight_decay)
+        
         optimizer = optim.Adam([{"params": self.roi_linear.parameters()},
                                 {"params": self.alpha_linear.parameters()},
                                 {"params": self.beta_linear.parameters()},
                                 {"params": self.gamma_linear.parameters()},
                                 {"params": self.image_linear.parameters()}], lr = self.learning_rate, weight_decay = self.weight_decay)
-        # return optimizer
-        
-        # optimizer = optim.Adam(self.parameters(), lr = self.learning_rate, weight_decay = self.weight_decay)
-
-        # self.vision_scheduler = CosineAnnealingLR(vision_optimizer, T_max = self.warmup_epochs)
-        # self.language_scheduler = CosineAnnealingLR(language_optimizer, T_max = self.warmup_epochs)
-        # return [vision_optimizer, language_optimizer]
 
         return optimizer
