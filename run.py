@@ -1,9 +1,9 @@
 import argparse
-from src.model import LanguageModel, VisionModel, DualEncoder, SpatialInformationAggregatorModule
 from gc import callbacks
+from src.model import LanguageModel, VisionModel, DualEncoder, SpatialInformationAggregatorModule
 from utils.loss import ContrastiveLoss
 from utils.env import set_seed
-# from utils.test import test_retrieval, TestCallback
+from utils.test import test_retrieval, TestCallback
 from data.dataloader import ImageCaptionDataset, OldImageCaptionDataset
 
 import pytorch_lightning as pl
@@ -45,6 +45,7 @@ if __name__ == "__main__":
 	parser.add_argument('--weight_decay', default = 1e-4, type = float)
 	parser.add_argument('--recall_ks', default = "1,5", type = str)
 	parser.add_argument('--train_siam', default = False, type = bool)
+	parser.add_argument('--train_de', default = False, type = bool)
 	
 	args = parser.parse_args()
 
@@ -76,54 +77,51 @@ if __name__ == "__main__":
 								image_resize = args.image_resize, warn_grayscale = args.warn_grayscale, eval=True)
 		test_dataloader = DataLoader(test_data, batch_size=args.batch_size, shuffle=False, collate_fn=test_data.collater)
 
-	# dataset = OldImageCaptionDataset(args.dataset, language_model_name = args.language_model_name, preprocess_text = args.preprocess_text,
-	# 			batch_size = args.batch_size, train = True, validation = True, test = False, max_length_caption = 64, 
-	# 			local_files_only = True, image_resize = (224, 224), warn_grayscale = False, load_cache = False)
+	
+	
+	
+	
+	# training
+	if args.train_de:
+		# model    
+		model = DualEncoder(args.vision_model_name, args.language_model_name, language_input_size = args.language_input_size, 
+					vision_hidden_size = args.vision_hidden_size, output_size = args.output_size, vision_learning_rate = args.vision_learning_rate,
+					language_learning_rate = args.language_learning_rate, dropout = args.dropout, pretrained = args.pretrained, 
+					weight_decay=args.weight_decay, warmup_epochs = args.warmup_epochs)
 
-	# model    
-	model = DualEncoder(args.vision_model_name, args.language_model_name, language_input_size = args.language_input_size, 
-				vision_hidden_size = args.vision_hidden_size, output_size = args.output_size, vision_learning_rate = args.vision_learning_rate,
-				language_learning_rate = args.language_learning_rate, dropout = args.dropout, pretrained = args.pretrained, 
-				weight_decay=args.weight_decay, warmup_epochs = args.warmup_epochs)
+		# # trainer        
+		trainer = pl.Trainer(max_epochs = args.max_epochs,
+							progress_bar_refresh_rate = args.progress_bar_refresh_rate, gpus = args.gpus, gradient_clip_val=args.gradient_clip_val)
+							# add deterministic in Trainer if cannot reproduce results
 
-	# # trainer        
-	# trainer = pl.Trainer(max_epochs = args.max_epochs,
-	# 					progress_bar_refresh_rate = args.progress_bar_refresh_rate, gpus = args.gpus, gradient_clip_val=args.gradient_clip_val)
-	# 					# add deterministic in Trainer if cannot reproduce results
-
-	# if args.train and args.validation: trainer.fit(model, train_dataloader, validation_dataloader)
-	# if args.train: trainer.fit(model, train_dataloader)
-	# if not args.test:
-	# 	print("Testing on val set")
-	# 	recalls = test_retrieval(model, validation_dataloader, recall_ks)
-	# 	for i, k in enumerate(recall_ks):
-	# 		print(f"Recall@{k}: ", recalls[i])
-	# if args.test:
-	# 	print("Testing on test set")
-	# 	recalls = test_retrieval(model, test_dataloader, recall_ks)
-	# 	for i, k in enumerate(recall_ks):
-	# 		print(f"Recall@{k}: ", recalls[i])
+		if args.train and args.validation: trainer.fit(model, train_dataloader, validation_dataloader)
+		if args.train: trainer.fit(model, train_dataloader)
 	
 	if args.train_siam:
-
-		siam_model = SpatialInformationAggregatorModule(model, height = 7, width = 7, num_channels = 2048, 
+		model = SpatialInformationAggregatorModule(model, height = 7, width = 7, num_channels = 2048, 
 					output_size = 512, pretrained = True, learning_rate = 1e-4, weight_decay = 1e-4)
 
 		siam_trainer = pl.Trainer(max_epochs = args.max_epochs,
 							progress_bar_refresh_rate = args.progress_bar_refresh_rate, gpus = args.gpus, 
-							gradient_clip_val=args.gradient_clip_val ,accelerator = args.accelerator)
+							gradient_clip_val=args.gradient_clip_val, accelerator = args.accelerator)
 
 
 
-		if args.train and args.validation: siam_trainer.fit(siam_model, train_dataloader, validation_dataloader)
-		if args.train: siam_trainer.fit(siam_model, train_dataloader)
-		# if not args.test:
-		# 	print("Testing on val set")
-		# 	recalls = test_retrieval(model, validation_dataloader, recall_ks)
-		# 	for i, k in enumerate(recall_ks):
-		# 		print(f"Recall@{k}: ", recalls[i])
-		# if args.test:
-		# 	print("Testing on test set")
-		# 	recalls = test_retrieval(model, test_dataloader, recall_ks)
-		# 	for i, k in enumerate(recall_ks):
-		# 		print(f"Recall@{k}: ", recalls[i])
+		if args.train and args.validation: siam_trainer.fit(model, train_dataloader, validation_dataloader)
+		if args.train: siam_trainer.fit(model, train_dataloader)
+
+
+	
+	
+	
+	# testing
+	if not args.test:
+		print("Testing on val set")
+		recalls = test_retrieval(model, validation_dataloader, device, recall_ks)
+		for i, k in enumerate(recall_ks):
+			print(f"Recall@{k}: ", recalls[i])
+	else:
+		print("Testing on test set")
+		recalls = test_retrieval(model, test_dataloader, device, recall_ks)
+		for i, k in enumerate(recall_ks):
+			print(f"Recall@{k}: ", recalls[i])

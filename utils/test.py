@@ -4,16 +4,16 @@ import torch.nn.functional as F
 import torch
 from pytorch_lightning.callbacks import Callback
 
-# class TestCallback(Callback):
-#     def __init__(self, dataloader, device, k_s=[1, 5]):
-#         self.dataloader = dataloader
-#         self.k_s = k_s
-#         self.device = device
+class TestCallback(Callback):
+    def __init__(self, dataloader, device, k_s=[1, 5]):
+        self.dataloader = dataloader
+        self.k_s = k_s
+        self.device = device
 
-#     def on_validation_epoch_end(self, trainer, model):
-#         recalls = test_retrieval(model, self.dataloader, self.device, self.k_s)
-#         for i, k in enumerate(self.k_s):
-#             print(f"Recall@{k}: ", recalls[i])
+    def on_validation_epoch_end(self, trainer, model):
+        recalls = test_retrieval(model, self.dataloader, self.device, self.k_s)
+        for i, k in enumerate(self.k_s):
+            print(f"Recall@{k}: ", recalls[i])
 
 
 def test_retrieval(model, dataloader, device, k_s = [1, 5]): # dataloader should have shuffle = False

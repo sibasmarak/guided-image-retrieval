@@ -10,6 +10,7 @@ def preprocess(data_path, dataset_name = "coco", split = "all"):
 
     if dataset_name == "coco":
         data = json.load(open(data_path, "r"))
+        val_images = json.load(open('./datasets/coco/val_images.json'))
 
         if split == 'test':
             raise ValueError("'test' split has no annotations")
@@ -17,13 +18,16 @@ def preprocess(data_path, dataset_name = "coco", split = "all"):
         for image_dict in tqdm(data["images"], position = 0, leave = True):
             Id = image_dict["id"]
             image_path = image_dict["file_name"]
+            image_name = image_path.split('/')[-1]
             if "train" in image_path:
                 dir_path = "./datasets/coco/train2014"
-                if split in ["train", "all"]:
-                    preprocessed_dict[Id] = {"image_path": os.path.join(dir_path, image_path), "captions": []}
             elif "val" in image_path:
                 dir_path = "./datasets/coco/val2014"
+            if image_name in val_images:
                 if split in ["val", "all"]:
+                    preprocessed_dict[Id] = {"image_path": os.path.join(dir_path, image_path), "captions": []}
+            else:
+                if split in ["train", "all"]:
                     preprocessed_dict[Id] = {"image_path": os.path.join(dir_path, image_path), "captions": []}
 
         for annotation_dict in data["annotations"]:

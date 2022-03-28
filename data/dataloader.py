@@ -189,7 +189,10 @@ class ImageCaptionDataset(Dataset):
 	def __init__(self, dataset, language_model_name = "bert", preprocess_text = True,
 				split='train', max_length_caption = 64, local_files_only = True, 
 				image_resize = (224, 224), warn_grayscale = False, eval = False):
+<<<<<<< HEAD
 
+=======
+>>>>>>> 893b5fe451dc1a51784a3147ede045954661a0f4
 
 		self.dataset = dataset
 		self.language_model_name = language_model_name
