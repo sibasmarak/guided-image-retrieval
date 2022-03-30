@@ -90,8 +90,8 @@ class ImageCaptionDataset(Dataset):
 		# obtain the text
 		# caption = self.captions[idx]
 		encoded_caption = self.captions[idx]
-		if self.preprocess_text:
-			caption = self.preprocess_caption(caption)
+		# if self.preprocess_text:
+		# 	encoded_caption = self.preprocess_caption(caption)
 
 		if encoded_caption is None:
 			# tokenize the caption
