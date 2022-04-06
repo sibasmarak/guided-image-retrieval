@@ -51,7 +51,7 @@ def demo_retrieval(model, sentence, dataloader, device, k = 5, train_siam = True
     similarities = torch.cat(similarities, dim=0).T
     ranked_indexes = torch.argsort(similarities, dim=1)
     all_ids = torch.cat(all_ids, dim=0)
-    all_images = np.concatenate(all_images, dim=0)
+    all_images = np.concatenate(all_images, axis=0)
     ranked_images = all_images[ranked_indexes.cpu().numpy()]
     image_paths = ranked_images[0, :k]
     for i, image_path in enumerate(list(image_paths)):

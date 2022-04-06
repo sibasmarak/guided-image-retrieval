@@ -3,7 +3,7 @@ from src.model import LanguageModel, VisionModel, DualEncoder
 from utils.loss import ContrastiveLoss
 from utils.env import set_seed
 from utils.demo import demo_retrieval
-from data.dataloader import ImageCaptionDataset, preprocess_text, OldImageCaptionDataset
+from data.dataloader import ImageCaptionDataset, preprocess_text #, OldImageCaptionDataset
 
 import pytorch_lightning as pl
 import torch
@@ -16,7 +16,7 @@ if __name__ == "__main__":
   parser.add_argument('--sentence', default = "", type = str)
   parser.add_argument('--accelerator', default = "dp", type = str)	# 64, 128
   parser.add_argument('--batch_size', default = 128, type = int)	# 64, 128
-  parser.add_argument('--checkpoint', default = 'checkpoints/retrieval.ckpt', type = str)
+  # parser.add_argument('--checkpoint', default = 'checkpoints/retrieval.ckpt', type = str)
   parser.add_argument('--dataset', default = 'coco', type = str, choices=['cc', 'coco', 'flickr30k'])
   parser.add_argument('--de_max_epochs', default = 10, type = int)
   parser.add_argument('--deterministic', default = True, type = bool)
@@ -90,8 +90,9 @@ if __name__ == "__main__":
 
   
   caption_dict = preprocess_text(args.sentence, language_model_name=args.language_model_name, max_length_caption=args.max_length_caption, local_files_only=args.local_files_only)
+  print(caption_dict)
   test_data = ImageCaptionDataset(args.dataset, language_model_name = args.language_model_name, preprocess_text = args.preprocess_text, 
-              split='test', max_length_caption = args.max_length_caption, local_files_only = args.local_files_only, 
+              split='val', max_length_caption = args.max_length_caption, local_files_only = args.local_files_only, 
               image_resize = args.image_resize, warn_grayscale = args.warn_grayscale, eval=True)
   test_dataloader = DataLoader(test_data, batch_size=args.batch_size, shuffle=False, collate_fn=test_data.collater)
 

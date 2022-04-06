@@ -21,12 +21,12 @@ def preprocess_text(caption, language_model_name = "bert", max_length_caption=64
 		encoded_caption = tokenizer(caption, max_length=max_length_caption, padding='max_length', truncation=True)
 		caption_input_ids = encoded_caption['input_ids']
 		caption_attention_masks = encoded_caption['attention_mask']
-		caption_input_ids = torch.tensor([caption_input_ids]).squeeze()
-		caption_attention_masks = torch.tensor([caption_attention_masks]).squeeze()
+		caption_input_ids = torch.tensor(caption_input_ids).squeeze().unsqueeze(0)
+		caption_attention_masks = torch.tensor(caption_attention_masks).squeeze().unsqueeze(0)
 		caption_token_type_ids = None
 		if language_model_name not in model_with_no_token_types:
 			caption_token_type_ids = encoded_caption['token_type_ids']
-			caption_token_type_ids = torch.tensor([caption_token_type_ids]).squeeze()
+			caption_token_type_ids = torch.tensor(caption_token_type_ids).squeeze().unsqueeze(0)
 
 		caption_dict = {
 			'caption_input_ids': caption_input_ids,
