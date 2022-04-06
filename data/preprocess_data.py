@@ -1,3 +1,4 @@
+# Import the required libraries
 import requests
 import urllib.request
 from PIL import Image
@@ -19,6 +20,7 @@ def preprocess(data_path, dataset_name = "coco", split = "all"):
             Id = image_dict["id"]
             image_path = image_dict["file_name"]
             image_name = image_path.split('/')[-1]
+            
             if "train" in image_path:
                 dir_path = "./datasets/coco/train2014"
             elif "val" in image_path:
@@ -41,11 +43,15 @@ def preprocess(data_path, dataset_name = "coco", split = "all"):
         dir_path = "./datasets/flickr30k/flickr30k-images"
         
         for image_dict in tqdm(data["images"], position = 0, leave = True):
+            
             Id = image_dict["imgid"]
             image_path = image_dict["filename"]
+            
             if split in [image_dict["split"], "all"]:
+            
                 preprocessed_dict[Id] = {"image_path": os.path.join(dir_path, image_path), "captions": []}
                 sentences_list = image_dict["sentences"]
+            
                 for token_sent_dict in sentences_list:
                     image_id = token_sent_dict["imgid"]
                     caption = token_sent_dict["raw"]
@@ -53,7 +59,6 @@ def preprocess(data_path, dataset_name = "coco", split = "all"):
 
     elif dataset_name == "cc":
 
-        
         if split == 'train':
             assert 'Train' in data_path, "wrong data path, expected 'Train' in data path"
             dir_path = "./datasets/cc/train"
@@ -110,4 +115,3 @@ if __name__ == "__main__":
     preprocessed_dict = preprocess(args.data_path, args.dataset, split = args.split)
     save_path = open(f'./datasets/{args.dataset}/{args.split}_image_captions.json', 'w')
     json.dump(preprocessed_dict, save_path)
-
