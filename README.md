@@ -37,15 +37,11 @@ The following files are present in the directory ```utils```.
 
 ### Data preprocessing
 
-- `python data/preprocess_data.py` (to create the required data loading format)   
-  - For CC  
-    - `python data/preprocess_data.py --dataset cc --data_path datasets/cc/Validation_GCC-1.1.0-Validation.tsv --split val`
-    - `python data/preprocess_data.py --dataset cc --data_path datasets/cc/Train_GCC-training.tsv --split train`  
-  - For MS-COCO  
-    - `python data/preprocess_data.py --dataset coco --data_path datasets/coco/annotations/captions_val2014.json --split val`
-    - `python data/preprocess_data.py --dataset coco --data_path datasets/coco/annotations/captions_train2014.json --split train`  
-  - For Flickr30k  
-    - `python data/preprocess_data.py --dataset flickr30k --data_path datasets/flickr30k/flickr30k-captions/dataset.json --split all`
+```./fetch_datasets.sh```
+This will obtain the Flickr30k and MS-COCO dataset in the required format for training and evaluation. 
+NOTE: 
+- Images of Flickr30k dataset need to be requested through a form available on the official [website](http://shannon.cs.illinois.edu/DenotationGraph/), hence the above script would not be able to fetch the images of Flickr30k dataset.
+- Since MS-COCO dataset has sizes in the range of GB (13 GB for train split, 6GB for validation split and 12GB for test split), running this script would require a couple of hours. 
 
 ### Experiments
 
