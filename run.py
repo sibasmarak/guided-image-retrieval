@@ -81,6 +81,7 @@ if __name__ == "__main__":
 								image_resize = args.image_resize, warn_grayscale = args.warn_grayscale)
 		train_dataloader = DataLoader(train_data, batch_size=args.batch_size, shuffle=args.train_shuffle, collate_fn=train_data.collater)
 
+	args.dataset = 'flickr30k'
 	if args.validation:
 		validation_data = ImageCaptionDataset(args.dataset, language_model_name = args.language_model_name, preprocess_text = args.preprocess_text, 
 								split='val', max_length_caption = args.max_length_caption, local_files_only = args.local_files_only, 
@@ -113,7 +114,10 @@ if __name__ == "__main__":
 		
 		if args.train: 
 			de_trainer.fit(model_de, train_dataloader)
-	
+
+	if not args.train_de:
+		model_de = DualEncoder.load_from_checkpoint(args.checkpoint)
+
 	if args.train_siam:
 
 		if not args.train_de:
@@ -139,13 +143,20 @@ if __name__ == "__main__":
 		if args.train: 
 			siam_trainer.fit(model_siam, train_dataloader)
 
+	if not args.train_siam:
+		model_siam = SpatialInformationAggregatorModule.load_from_checkpoint(args.checkpoint)
+
+	if not (args.train_de and args.train_siam):
+		model_de = DualEncoder.load_from_checkpoint(args.checkpoint)
+		model_siam = None
+	
 	# Testing
 	if not args.test:
 		print("Evaluating on validation set")
 		if model_siam:
-			recalls = test_retrieval(model_siam, validation_dataloader, device, recall_ks, train_siam = args.train_siam)
+			recalls = test_retrieval(model_siam, validation_dataloader, device, recall_ks, train_siam = True)
 		else:
-			recalls = test_retrieval(model_de, validation_dataloader, device, recall_ks, train_siam = args.train_siam)
+			recalls = test_retrieval(model_de, validation_dataloader, device, recall_ks, train_siam = False)
 
 		for i, k in enumerate(recall_ks):
 			print(f"Recall@{k}: ", recalls[i])
