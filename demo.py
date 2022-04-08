@@ -14,7 +14,7 @@ from data.dataloader import ImageCaptionDataset, preprocess_text #, OldImageCapt
 if __name__ == "__main__":
 
 	parser = argparse.ArgumentParser()
-	parser.add_argument('--checkpoint', default='checkpoints/retrieval.ckpt', type=str)
+	# parser.add_argument('--checkpoint', default='checkpoints/retrieval.ckpt', type=str)
 	parser.add_argument('--sentence', default = "", type = str)
 	parser.add_argument('--accelerator', default = "dp", type = str)	# 64, 128
 	parser.add_argument('--batch_size', default = 128, type = int)	# 64, 128
