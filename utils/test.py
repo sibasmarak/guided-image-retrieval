@@ -70,6 +70,11 @@ def test_retrieval(model, dataloader, device, k_s = [1, 5], train_siam = True): 
         curr_img_ids = curr_img_ids.unsqueeze(dim=0).T.repeat(1, ranked_ids.size(1))
         retrieval = torch.where(ranked_ids == curr_img_ids, 1, 0)
         
+        # rets = retrieval[:, :5]
+        # for i, ret in enumerate(rets):
+        #     if torch.sum(ret) > 0:
+        #         print(batch['sentence'][i])
+
         for k_i, k in enumerate(k_s):
             total_recalls[k_i] += torch.sum(retrieval[:, :k])
         len_recall += retrieval.size(0)

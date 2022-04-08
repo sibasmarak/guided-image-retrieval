@@ -1,5 +1,5 @@
 import argparse
-from src.model import LanguageModel, VisionModel, DualEncoder
+from src.model import LanguageModel, VisionModel, DualEncoder, SpatialInformationAggregatorModule
 from utils.loss import ContrastiveLoss
 from utils.env import set_seed
 from utils.demo import demo_retrieval
