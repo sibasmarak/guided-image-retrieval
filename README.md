@@ -2,6 +2,8 @@
 
 Retrieving images from an image collection, given a textual input, has attracted a lot of attention over the past few years. While existing neural methods have shown promising performance over conventional early deep learning techniques, they typically lack in using visual information properly to ground textual inputs (as in the case of dual encoder retrieval models) or tend to take a large amount of time (as in the case of cross attention retrieval models). In this work, we leverage a simple visual-grounding method to aid dual encoders and compare the performance with using only dual encoders.
 
+[Demo video](https://youtu.be/h9GsLdpa6VY)
+
 ### File Description
 
 This repository contains 3 python scripts and 3 directories. 
@@ -74,3 +76,12 @@ The table below enumerates the Recall@1 and Recall@5 for different output sizes 
 | SIAM  | 512    | 10     | 0.35 | 0.95 |
 
 It is evident that as the output size increases, the performance of both DE and SIAM increases. Moreover, we can also observe that the performance increases as the models are trained for more epochs (5, 10). This provides us the motivation that, if the models are trained completely for around 180 epochs with the whole MS COCO dataset, the performance will comparatively be better. Moreover, comparing DE with SIAM shows us that SIAM performs better than DE. Intuitively, since SIAM is guided by the object present in the image, the representation is more aligned to the text, hence the re-ranking is better.
+
+### Labour Break up
+
+| Name        |             Primary Tasks             |
+| -----       | ------------------------------------- |
+| Ananya Das      | Literature Review on BERT, Attention mechanisms, Faster RCNN, Training and Evaluation of DE and SIAM |
+| Shubhraneel Pal | Literature review on Content Based Image Retrieval System, Dataset preprocessing for Flickr30k val split, Evaluation and Demonstration script | 
+| Siba S. Panigrahi | Literature review on Evidence Retrieval for Fact Verification, Implementing guiding block in pipeline, Implementing SIAM, Implementing data preprocessing steps, Mathematical analysis of backpropagation in pipeline |
+| Sohan Patnaik   | Literature Review on Efficient and Fast Image Retrieval, Integrating object detection model in pipeline, Implementing Dual Encoder model (consisting of ResNet50 and pretrained BERT), Data curation, Implementing Loss module, Mathematical analysis of backpropagation in pipeline |
