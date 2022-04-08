@@ -13,6 +13,7 @@ from transformers import AutoTokenizer
 from torch.utils.data import Dataset, DataLoader, TensorDataset
 from utils.env import model_modelpath_mapping, model_with_no_token_types
 import numpy as np
+from copy import deepcopy
 
 def preprocess_text(caption, language_model_name = "bert", max_length_caption=64, local_files_only=True):
 		language_model_path = model_modelpath_mapping[language_model_name]
@@ -83,6 +84,7 @@ class ImageCaptionDataset(Dataset):
 		self.image_ids = []
 		self.image_paths = []
 		self.captions = []
+		self.sent_captions = []
 
 		i = 0
 		len_prepro_dict = len(list(self.preprocessed_dict.items()))
@@ -98,6 +100,7 @@ class ImageCaptionDataset(Dataset):
 			self.image_ids.extend([image_ids] * num_captions)   
 			self.image_paths.extend([image_path] * num_captions)
 			captions = path_caption_dict['captions'][:num_captions]
+			self.sent_captions.extend(deepcopy(captions))
 
 			for idx in range(num_captions):
 				if self.preprocess_text:
@@ -155,7 +158,7 @@ class ImageCaptionDataset(Dataset):
 			caption_token_type_ids = torch.tensor(caption_token_type_ids).squeeze()
 
 
-		return image_id, image, caption_input_ids, caption_attention_masks, caption_token_type_ids, image_path
+		return image_id, image, caption_input_ids, caption_attention_masks, caption_token_type_ids, image_path, self.sent_captions[idx]
 
 	def collater(self, items):
 		
@@ -167,6 +170,7 @@ class ImageCaptionDataset(Dataset):
 				'caption_attention_masks': torch.stack([x[3] for x in items], dim=0),
 				'caption_token_type_ids': torch.stack([x[4] for x in items], dim=0),
 				'image_path': np.array([x[5] for x in items]),
+				'sentence': np.array([x[6] for x in items])
 			}
 		else:
 			batch = {
@@ -175,6 +179,7 @@ class ImageCaptionDataset(Dataset):
 				'caption_input_ids': torch.stack([x[2] for x in items], dim=0),
 				'caption_attention_masks': torch.stack([x[3] for x in items], dim=0),
 				'image_path': np.array([x[5] for x in items]),
+				'sentence': np.array([x[6] for x in items])
 			}
 
 		return batch

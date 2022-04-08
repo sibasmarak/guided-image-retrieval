@@ -3,7 +3,7 @@ from src.model import LanguageModel, VisionModel, DualEncoder
 from utils.loss import ContrastiveLoss
 from utils.env import set_seed
 from utils.test import test_retrieval
-from data.dataloader import ImageCaptionDataset, OldImageCaptionDataset
+from data.dataloader import ImageCaptionDataset #, OldImageCaptionDataset
 
 import pytorch_lightning as pl
 import torch
@@ -70,7 +70,7 @@ if __name__ == "__main__":
 	# 	validation_dataloader = DataLoader(validation_data, batch_size=args.batch_size, shuffle=False, collate_fn=validation_data.collater)
 	
 	test_data = ImageCaptionDataset(args.dataset, language_model_name = args.language_model_name, preprocess_text = args.preprocess_text, 
-							split='test', max_length_caption = args.max_length_caption, local_files_only = args.local_files_only, 
+							split='val', max_length_caption = args.max_length_caption, local_files_only = args.local_files_only, 
 							image_resize = args.image_resize, warn_grayscale = args.warn_grayscale, eval=True)
 	test_dataloader = DataLoader(test_data, batch_size=args.batch_size, shuffle=False, collate_fn=test_data.collater)
 
@@ -92,6 +92,6 @@ if __name__ == "__main__":
 	# 	print("Testing on val")
 	# 	test_retrieval(model, validation_dataloader, recall_ks)
 	# else:
-	recalls = test_retrieval(model, test_dataloader, device, recall_ks)
+	recalls = test_retrieval(model, test_dataloader, device, recall_ks, train_siam=False)
 	for i, k in enumerate(recall_ks):
 			print(f"Recall@{k}: ", recalls[i])
